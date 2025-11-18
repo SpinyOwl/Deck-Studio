@@ -1,5 +1,5 @@
 {
-  "name": "card-deck-studio",
+  "name": "spinyowl-deck-studio",
   "version": "0.0.1",
   "private": true,
   "main": "electron/main.js",
