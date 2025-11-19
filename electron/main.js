@@ -60,7 +60,13 @@ async function buildTree(dir) {
             });
         }
     }
-    return children;
+    return children.sort((a, b) => {
+        if (a.type === b.type) {
+            return a.name.localeCompare(b.name);
+        }
+
+        return a.type === 'dir' ? -1 : 1;
+    });
 }
 
 ipcMain.handle('select-project-folder', async () => {
