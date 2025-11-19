@@ -2,6 +2,7 @@
 import {useState} from 'react';
 import {type FileNode, FileTree} from './components/FileTree';
 import {MonacoEditorPane} from './components/MonacoEditorPane';
+import './App.css';
 
 function App() {
   const [rootPath, setRootPath] = useState<string | null>(null);
@@ -34,42 +35,29 @@ function App() {
     setDirty(false);
   }
 
-  return (<div style={{height: '100vh', display: 'flex', flexDirection: 'column'}}>
-      {/* Top bar */}
-      <div
-        style={{
-          padding: '4px 8px', display: 'flex', alignItems: 'center', gap: 8, background: '#1e1e1e', color: '#fff'
-        }}
-      >
+  return (
+    <div className="app-grid">
+      <header className="toolbar">
         <button onClick={handleOpenProject}>Open Project Folder…</button>
         <button onClick={handleSave} disabled={!selectedFile || !dirty}>
           Save
         </button>
-        <div style={{marginLeft: 'auto', fontSize: 12, opacity: 0.8}}>
+        <div className="toolbar__status">
           {rootPath ? `Project: ${rootPath}` : 'No project open'}
           {selectedFile && ` | File: ${selectedFile.path}${dirty ? ' *' : ''}`}
         </div>
-      </div>
+      </header>
 
-      {/* Main area */}
-      <div style={{flex: 1, display: 'flex', minHeight: 0}}>
-        {/* Sidebar */}
-        <div
-          style={{
-            width: 260, borderRight: '1px solid #333', padding: 8, overflow: 'auto', background: '#111', color: '#ddd'
-          }}
-        >
-          <div style={{fontWeight: 'bold', marginBottom: 8}}>Files</div>
-          {tree.length === 0 ? (<div style={{fontSize: 12, opacity: 0.7}}>
-              Open a project folder to see files here.
-            </div>) : (<FileTree
-              nodes={tree}
-              selectedPath={selectedFile?.path}
-              onSelectFile={handleSelectFile}
-            />)}
-        </div>
+      <aside className="project-tree">
+        <div className="panel-title">Files</div>
+        {tree.length === 0 ? (
+          <div className="placeholder-text">Open a project folder to see files here.</div>
+        ) : (
+          <FileTree nodes={tree} selectedPath={selectedFile?.path} onSelectFile={handleSelectFile} />
+        )}
+      </aside>
 
-        {/* Editor */}
+      <section className="editor">
         <MonacoEditorPane
           path={selectedFile?.path}
           value={content}
@@ -78,8 +66,19 @@ function App() {
             setDirty(true);
           }}
         />
-      </div>
-    </div>);
+      </section>
+
+      <section className="card-preview">
+        <div className="panel-title">Card preview</div>
+        <div className="placeholder-text">Select a card file to see a preview.</div>
+      </section>
+
+      <section className="logs">
+        <div className="panel-title">Logs</div>
+        <div className="placeholder-text">Build, lint, and runtime logs will appear here.</div>
+      </section>
+    </div>
+  );
 }
 
 export default App;
