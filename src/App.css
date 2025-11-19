@@ -1,11 +1,12 @@
 .app-grid {
   display: grid;
-  grid-template-columns: 280px 1fr 360px;
-  grid-template-rows: auto 1fr 200px;
+  grid-template-columns: var(--sidebar-width) 6px 1fr 6px var(--preview-width);
+  grid-template-rows: auto 1fr 6px var(--logs-height);
   grid-template-areas:
-    'toolbar toolbar toolbar'
-    'project-tree editor card-preview'
-    'logs logs logs';
+    'toolbar toolbar toolbar toolbar toolbar'
+    'project-tree sidebar-resize editor preview-resize card-preview'
+    'logs-resize logs-resize logs-resize logs-resize logs-resize'
+    'logs logs logs logs logs';
   height: 100vh;
   background: #050505;
   color: #f5f5f5;
@@ -39,8 +40,8 @@
 
 .project-tree {
   grid-area: project-tree;
+  min-width: 50px;
   overflow: auto;
-  min-width: 0;
 }
 
 .editor {
@@ -51,9 +52,13 @@
   padding: 0;
 }
 
+.editor--hidden {
+  display: none;
+}
+
 .card-preview {
   grid-area: card-preview;
-  min-width: 0;
+  min-width: 50px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -61,8 +66,38 @@
 
 .logs {
   grid-area: logs;
-  min-height: 0;
+  min-height: 50px;
   overflow: auto;
+}
+
+.resize-handle {
+  background: #1f1f1f;
+  transition: background 0.2s ease;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  background: #2b2b2b;
+}
+
+.resize-handle--vertical {
+  cursor: ew-resize;
+}
+
+.resize-handle--horizontal {
+  cursor: ns-resize;
+}
+
+.resize-handle--sidebar {
+  grid-area: sidebar-resize;
+}
+
+.resize-handle--preview {
+  grid-area: preview-resize;
+}
+
+.resize-handle--logs {
+  grid-area: logs-resize;
 }
 
 .panel-title {

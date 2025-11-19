@@ -1,8 +1,16 @@
 // src/App.tsx
-import {useState} from 'react';
+import {
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {type FileNode, FileTree} from './components/FileTree';
 import {MonacoEditorPane} from './components/MonacoEditorPane';
 import './App.css';
+
+const MIN_PANEL_SIZE = 50;
 
 function App() {
   const [rootPath, setRootPath] = useState<string | null>(null);
@@ -10,6 +18,75 @@ function App() {
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
   const [content, setContent] = useState('');
   const [dirty, setDirty] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [previewWidth, setPreviewWidth] = useState(360);
+  const [logsHeight, setLogsHeight] = useState(200);
+
+  type DragTarget = 'sidebar' | 'preview' | 'logs';
+  const dragState = useRef<{
+    target: DragTarget;
+    startX: number;
+    startY: number;
+    initialSidebarWidth: number;
+    initialPreviewWidth: number;
+    initialLogsHeight: number;
+  } | null>(null);
+
+  useEffect(() => {
+    function handlePointerMove(event: PointerEvent) {
+      const state = dragState.current;
+      if (!state) return;
+
+      if (state.target === 'sidebar') {
+        const nextWidth = Math.max(
+          MIN_PANEL_SIZE,
+          state.initialSidebarWidth + (event.clientX - state.startX),
+        );
+        setSidebarWidth(nextWidth);
+      }
+
+      if (state.target === 'preview') {
+        const nextWidth = Math.max(
+          MIN_PANEL_SIZE,
+          state.initialPreviewWidth - (event.clientX - state.startX),
+        );
+        setPreviewWidth(nextWidth);
+      }
+
+      if (state.target === 'logs') {
+        const nextHeight = Math.max(
+          MIN_PANEL_SIZE,
+          state.initialLogsHeight - (event.clientY - state.startY),
+        );
+        setLogsHeight(nextHeight);
+      }
+    }
+
+    function handlePointerUp() {
+      dragState.current = null;
+    }
+
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointermove', handlePointerMove);
+
+    return () => {
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+    };
+  }, []);
+
+  function beginDrag(target: DragTarget, event: ReactPointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragState.current = {
+      target,
+      startX: event.clientX,
+      startY: event.clientY,
+      initialSidebarWidth: sidebarWidth,
+      initialPreviewWidth: previewWidth,
+      initialLogsHeight: logsHeight,
+    };
+  }
 
   async function handleOpenProject() {
     const res = await window.api.selectProjectFolder();
@@ -36,7 +113,14 @@ function App() {
   }
 
   return (
-    <div className="app-grid">
+    <div
+      className="app-grid"
+      style={{
+        '--sidebar-width': `${sidebarWidth}px`,
+        '--preview-width': `${previewWidth}px`,
+        '--logs-height': `${logsHeight}px`,
+      } as CSSProperties}
+    >
       <header className="toolbar">
         <button onClick={handleOpenProject}>Open Project Folder…</button>
         <button onClick={handleSave} disabled={!selectedFile || !dirty}>
@@ -57,7 +141,15 @@ function App() {
         )}
       </aside>
 
-      <section className="editor">
+      <div
+        className="resize-handle resize-handle--vertical resize-handle--sidebar"
+        role="separator"
+        aria-label="Resize project tree"
+        aria-orientation="vertical"
+        onPointerDown={(event) => beginDrag('sidebar', event)}
+      />
+
+      <section className={`editor ${rootPath ? '' : 'editor--hidden'}`}>
         <MonacoEditorPane
           path={selectedFile?.path}
           value={content}
@@ -72,6 +164,22 @@ function App() {
         <div className="panel-title">Card preview</div>
         <div className="placeholder-text">Select a card file to see a preview.</div>
       </section>
+
+      <div
+        className="resize-handle resize-handle--vertical resize-handle--preview"
+        role="separator"
+        aria-label="Resize card preview"
+        aria-orientation="vertical"
+        onPointerDown={(event) => beginDrag('preview', event)}
+      />
+
+      <div
+        className="resize-handle resize-handle--horizontal resize-handle--logs"
+        role="separator"
+        aria-label="Resize logs panel"
+        aria-orientation="horizontal"
+        onPointerDown={(event) => beginDrag('logs', event)}
+      />
 
       <section className="logs">
         <div className="panel-title">Logs</div>
