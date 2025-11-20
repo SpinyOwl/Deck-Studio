@@ -1,6 +1,7 @@
 // src/components/EditorPanel.tsx
 import React from 'react';
 import {MonacoEditorPane} from './MonacoEditorPane';
+import './EditorPanel.css';
 
 interface Props {
   readonly path?: string;

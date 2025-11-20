@@ -1,6 +1,7 @@
 // src/components/MonacoEditorPane.tsx
 import React from 'react';
 import Editor from '@monaco-editor/react';
+import './MonacoEditorPane.css';
 
 interface Props {
   path?: string;

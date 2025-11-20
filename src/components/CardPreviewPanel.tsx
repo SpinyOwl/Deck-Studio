@@ -1,5 +1,6 @@
 // src/components/CardPreviewPanel.tsx
 import React from 'react';
+import './CardPreviewPanel.css';
 
 interface Props {
   readonly collapsed: boolean;

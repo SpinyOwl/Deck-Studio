@@ -11,7 +11,8 @@ import {EditorPanel} from './components/EditorPanel';
 import {type FileNode} from './components/FileTree';
 import {LogsPanel} from './components/LogsPanel';
 import {ProjectTreePanel} from './components/ProjectTreePanel';
-import './App.css';
+import './styles/AppLayout.css';
+import './styles/Panel.css';
 
 const MIN_PANEL_SIZE = 150;
 const COLLAPSED_THICKNESS = 0;

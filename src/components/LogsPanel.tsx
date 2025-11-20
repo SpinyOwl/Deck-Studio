@@ -1,5 +1,6 @@
 // src/components/LogsPanel.tsx
 import React from 'react';
+import './LogsPanel.css';
 
 interface Props {
   readonly collapsed: boolean;

@@ -1,0 +1,7 @@
+.project-tree {
+    grid-area: project-tree;
+}
+
+.project-tree .panel__body {
+    padding: 10px 12px;
+}

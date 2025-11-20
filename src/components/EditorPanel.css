@@ -1,0 +1,7 @@
+.editor {
+    grid-area: editor;
+}
+
+.editor .panel__body {
+    min-height: 0;
+}

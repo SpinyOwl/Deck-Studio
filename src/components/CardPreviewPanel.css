@@ -1,0 +1,9 @@
+.card-preview {
+    grid-area: card-preview;
+}
+
+.card-preview .panel__body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}

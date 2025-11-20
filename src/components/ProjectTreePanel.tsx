@@ -1,6 +1,7 @@
 // src/components/ProjectTreePanel.tsx
 import React from 'react';
 import {type FileNode, FileTree} from './FileTree';
+import './ProjectTreePanel.css';
 
 interface Props {
   readonly tree: FileNode[];
