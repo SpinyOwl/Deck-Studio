@@ -153,6 +153,9 @@ function App() {
     setIsLogsCollapsed(true);
   }
 
+  /**
+   * Opens an existing project folder and hydrates the editor state with its tree.
+   */
   async function handleOpenProject() {
     const res = await window.api.selectProjectFolder();
     if (!res) return;
@@ -161,6 +164,13 @@ function App() {
     setSelectedFile(null);
     setContent('');
     setDirty(false);
+  }
+
+  /**
+   * Placeholder for creating a new project.
+   */
+  function handleCreateProject() {
+    // No-op for now. Implementation will be added later.
   }
 
   async function handleSelectFile(node: FileNode) {
@@ -175,6 +185,13 @@ function App() {
     if (!selectedFile) return;
     await window.api.writeFile(selectedFile.path, content);
     setDirty(false);
+  }
+
+  /**
+   * Placeholder for opening the settings panel.
+   */
+  function handleOpenSettings() {
+    // No-op for now. Implementation will be added later.
   }
 
   function handleEditorChange(val: string) {
@@ -192,13 +209,63 @@ function App() {
       } as CSSProperties}
     >
       <header className="toolbar">
-        <button onClick={handleOpenProject}>Open Project Folder…</button>
-        <button onClick={handleSave} disabled={!selectedFile || !dirty}>
-          Save
-        </button>
-        <div className="toolbar__status">
-          {rootPath ? `Project: ${rootPath}` : 'No project open'}
-          {selectedFile && ` | File: ${selectedFile.path}${dirty ? ' *' : ''}`}
+        <div className="toolbar__title">
+          <span className="toolbar__app-name">Deck Studio</span>
+          {rootPath ? (
+            <div className="toolbar__project">
+              <span aria-hidden="true" className="material-symbols-outlined toolbar__chevron">
+                chevron_right
+              </span>
+              <span aria-hidden="true" className="material-symbols-outlined toolbar__project-icon">
+                folder_open
+              </span>
+              <span className="toolbar__project-path">{rootPath}</span>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="toolbar__actions">
+          <button
+            type="button"
+            className="toolbar__icon-button"
+            aria-label="Create new project"
+            onClick={handleCreateProject}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined">
+              create_new_folder
+            </span>
+          </button>
+          <button
+            type="button"
+            className="toolbar__icon-button"
+            aria-label="Open existing project"
+            onClick={handleOpenProject}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined">
+              folder_open
+            </span>
+          </button>
+          <button
+            type="button"
+            className="toolbar__icon-button"
+            aria-label="Save file"
+            disabled={!selectedFile || !dirty}
+            onClick={handleSave}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined">
+              save
+            </span>
+          </button>
+          <button
+            type="button"
+            className="toolbar__icon-button"
+            aria-label="Open settings"
+            onClick={handleOpenSettings}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined">
+              settings
+            </span>
+          </button>
         </div>
       </header>
 
