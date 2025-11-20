@@ -105,11 +105,6 @@ button {
   transition: border-color 120ms ease, background-color 120ms ease;
 }
 
-button:hover {
-  border-color: var(--color-accent);
-  background-color: var(--color-surface-hover);
-}
-
 button:disabled {
   opacity: 0.5;
   cursor: not-allowed;

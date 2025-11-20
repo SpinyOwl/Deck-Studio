@@ -5,3 +5,99 @@
 .editor .panel__body {
     min-height: 0;
 }
+
+.panel__header.panel__header--tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    overflow-x: scroll;
+    overflow-y: hidden;
+    justify-content: flex-start;
+}
+
+.panel__header--tabs::-webkit-scrollbar {
+    height: 2px;
+}
+.panel__header--tabs::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+.panel__header--tabs::-webkit-scrollbar-track {
+    background-color: transparent;
+}
+.panel__header--tabs::-webkit-scrollbar-button {
+    display: none;
+}
+
+.editor__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 4px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 4px 4px 0 0;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.editor__tab.is-active {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-color: var(--color-accent);
+}
+
+.editor__tab:hover {
+    color: var(--color-text-secondary);
+}
+
+.editor__tab-label {
+    white-space: nowrap;
+}
+
+.editor__tab-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.editor__tab-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #f1c40f;
+    display: inline-block;
+}
+
+.editor__tab-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border: none;
+    background: none;
+    color: inherit;
+    padding: 0;
+    border-radius: 18px;
+}
+
+.editor__tab-close .editor__tab-close-icon {
+    font-size: 18px;
+}
+
+.editor__tab-close:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.editor__empty-state {
+    color: #c7c7c7;
+    font-size: 14px;
+}
+
+.editor__empty-editor {
+    color: #c7c7c7;
+    font-size: 14px;
+    padding: 16px;
+}

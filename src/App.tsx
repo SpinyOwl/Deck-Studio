@@ -20,9 +20,15 @@ const COLLAPSED_THICKNESS = 0;
 function App() {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
-  const [selectedFile, setSelectedFile] = useState<FileNode | null>(null);
-  const [content, setContent] = useState('');
-  const [dirty, setDirty] = useState(false);
+  type OpenFile = {
+    path: string;
+    name: string;
+    content: string;
+    isDirty: boolean;
+  };
+
+  const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
+  const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [previewWidth, setPreviewWidth] = useState(360);
   const [logsHeight, setLogsHeight] = useState(200);
@@ -161,9 +167,8 @@ function App() {
     if (!res) return;
     setRootPath(res.rootPath);
     setTree(res.tree);
-    setSelectedFile(null);
-    setContent('');
-    setDirty(false);
+    setOpenFiles([]);
+    setActiveFilePath(null);
   }
 
   /**
@@ -173,18 +178,39 @@ function App() {
     // No-op for now. Implementation will be added later.
   }
 
+  /**
+   * Opens a file in a new tab or focuses it when already open.
+   *
+   * @param node - File node selected from the project tree.
+   */
   async function handleSelectFile(node: FileNode) {
     if (node.type !== 'file') return;
+
+    const existing = openFiles.find(file => file.path === node.path);
+    if (existing) {
+      setActiveFilePath(node.path);
+      return;
+    }
+
     const text = await window.api.readFile(node.path);
-    setSelectedFile(node);
-    setContent(text);
-    setDirty(false);
+    setOpenFiles(prev => [...prev, { path: node.path, name: node.name, content: text, isDirty: false }]);
+    setActiveFilePath(node.path);
   }
 
+  /**
+   * Persists the active file to disk and clears its dirty state.
+   */
   async function handleSave() {
-    if (!selectedFile) return;
-    await window.api.writeFile(selectedFile.path, content);
-    setDirty(false);
+    if (!activeFilePath) return;
+    const targetFile = openFiles.find(file => file.path === activeFilePath);
+    if (!targetFile) return;
+
+    await window.api.writeFile(targetFile.path, targetFile.content);
+    setOpenFiles(prev =>
+      prev.map(file =>
+        file.path === activeFilePath ? { ...file, isDirty: false } : file,
+      ),
+    );
   }
 
   /**
@@ -194,10 +220,41 @@ function App() {
     // No-op for now. Implementation will be added later.
   }
 
+  /**
+   * Updates the active file content and marks it as dirty.
+   *
+   * @param val - New editor content value.
+   */
   function handleEditorChange(val: string) {
-    setContent(val);
-    setDirty(true);
+    if (!activeFilePath) return;
+
+    setOpenFiles(prev =>
+      prev.map(file =>
+        file.path === activeFilePath
+          ? { ...file, content: val, isDirty: true }
+          : file,
+      ),
+    );
   }
+
+  /**
+   * Closes an open file tab and updates the active file accordingly.
+   */
+  function handleCloseFile(path: string) {
+    setOpenFiles(prev => {
+      const closedIndex = prev.findIndex(file => file.path === path);
+      const nextFiles = prev.filter(file => file.path !== path);
+
+      if (path === activeFilePath) {
+        const fallback = prev[closedIndex + 1] ?? prev[closedIndex - 1];
+        setActiveFilePath(fallback?.path ?? null);
+      }
+
+      return nextFiles;
+    });
+  }
+
+  const activeFile = openFiles.find(file => file.path === activeFilePath) ?? null;
 
   return (
     <div
@@ -249,7 +306,7 @@ function App() {
             type="button"
             className="toolbar__icon-button"
             aria-label="Save file"
-            disabled={!selectedFile || !dirty}
+            disabled={!activeFile || !activeFile.isDirty}
             onClick={handleSave}
           >
             <span aria-hidden="true" className="material-symbols-outlined">
@@ -300,7 +357,7 @@ function App() {
 
       <ProjectTreePanel
         tree={tree}
-        selectedPath={selectedFile?.path}
+        selectedPath={activeFile?.path}
         onSelectFile={handleSelectFile}
         collapsed={isProjectTreeCollapsed}
       />
@@ -316,9 +373,11 @@ function App() {
       />
 
       <EditorPanel
-        path={selectedFile?.path}
-        value={content}
+        openFiles={openFiles}
+        activePath={activeFile?.path ?? null}
         onChange={handleEditorChange}
+        onSelectFile={setActiveFilePath}
+        onCloseFile={handleCloseFile}
         isVisible={Boolean(rootPath)}
       />
 
