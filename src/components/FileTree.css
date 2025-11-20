@@ -1,0 +1,68 @@
+.file-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px 6px;
+    user-select: none;
+}
+
+.file-tree__group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.file-tree__row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.file-tree__row--dir {
+    font-weight: 600;
+}
+
+.file-tree__row--file.is-selected {
+    background: #2e3b4e;
+    color: #ffffff;
+}
+
+.file-tree__row.is-selected .file-tree__icon {
+    color: currentColor;
+}
+
+.file-tree__chevron {
+    display: inline-flex;
+    width: 18px;
+    justify-content: center;
+}
+
+.file-tree__icon {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 18px;
+    color: #cfd8e3;
+}
+
+.file-tree__chevron-icon {
+    color: #9ca3af;
+    font-size: 18px;
+}
+
+.file-tree__icon--dir {
+    color: #fbbf24;
+}
+
+.file-tree__icon--file {
+    color: #a5b4fc;
+}
+
+.file-tree__name {
+    min-width: 0;
+}
