@@ -1,4 +1,4 @@
-// src/components/FileTree.tsx
+// src/components/FileTree/FileTree.tsx
 import React, {useEffect, useState} from 'react';
 import './FileTree.css';
 

@@ -1,4 +1,4 @@
-// src/components/CardPreviewPanel.tsx
+// src/components/CardPreviewPanel/CardPreviewPanel.tsx
 import React from 'react';
 import './CardPreviewPanel.css';
 

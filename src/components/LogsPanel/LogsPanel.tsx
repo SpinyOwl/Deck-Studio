@@ -1,4 +1,4 @@
-// src/components/LogsPanel.tsx
+// src/components/LogsPanel/LogsPanel.tsx
 import React from 'react';
 import './LogsPanel.css';
 

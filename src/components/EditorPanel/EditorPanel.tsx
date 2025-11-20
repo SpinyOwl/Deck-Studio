@@ -1,6 +1,6 @@
-// src/components/EditorPanel.tsx
+// src/components/EditorPanel/EditorPanel.tsx
 import React from 'react';
-import {MonacoEditorPane} from './MonacoEditorPane';
+import {MonacoEditorPane} from '../MonacoEditorPane';
 import './EditorPanel.css';
 
 interface OpenFile {
@@ -44,9 +44,8 @@ export const EditorPanel: React.FC<Props> = ({
           openFiles.map(file => {
             const isActive = file.path === activePath;
             return (
-              <button
+              <div
                 key={file.path}
-                type="button"
                 className={`editor__tab ${isActive ? 'is-active' : ''}`.trim()}
                 role="tab"
                 aria-selected={isActive}
@@ -71,7 +70,7 @@ export const EditorPanel: React.FC<Props> = ({
                     </span>
                   </button>
                 </div>
-              </button>
+              </div>
             );
           })
         )}

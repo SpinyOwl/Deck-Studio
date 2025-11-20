@@ -1,6 +1,6 @@
-// src/components/ProjectTreePanel.tsx
+// src/components/ProjectTreePanel/ProjectTreePanel.tsx
 import React from 'react';
-import {type FileNode, FileTree} from './FileTree';
+import {type FileNode, FileTree} from '../FileTree';
 import './ProjectTreePanel.css';
 
 interface Props {

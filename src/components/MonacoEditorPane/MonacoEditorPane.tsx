@@ -1,4 +1,4 @@
-// src/components/MonacoEditorPane.tsx
+// src/components/MonacoEditorPane/MonacoEditorPane.tsx
 import React from 'react';
 import Editor from '@monaco-editor/react';
 import './MonacoEditorPane.css';

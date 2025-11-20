@@ -1,6 +1,6 @@
-// src/components/SettingsModal.tsx
-import {MonacoEditorPane} from './MonacoEditorPane';
-import '../styles/SettingsEditor.css';
+// src/components/SettingsModal/SettingsModal.tsx
+import {MonacoEditorPane} from '../MonacoEditorPane';
+import './SettingsModal.css';
 
 interface SettingsModalProps {
   readonly isOpen: boolean;
