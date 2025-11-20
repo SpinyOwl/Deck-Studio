@@ -1,15 +1,16 @@
 .app-grid {
     display: grid;
-    grid-template-columns: var(--sidebar-width) 4px 1fr 4px var(--preview-width);
+    grid-template-columns: var(--side-toolbar-width) var(--sidebar-width) 4px 1fr 4px var(--preview-width) var(--side-toolbar-width);
     grid-template-rows: auto 1fr 4px var(--logs-height);
     grid-template-areas:
-    'toolbar toolbar toolbar toolbar toolbar'
-    'project-tree sidebar-resize editor preview-resize card-preview'
-    'logs-resize logs-resize logs-resize logs-resize logs-resize'
-    'logs logs logs logs logs';
+    'toolbar toolbar toolbar toolbar toolbar toolbar toolbar'
+    'left-toolbar project-tree sidebar-resize editor preview-resize card-preview right-toolbar'
+    'left-toolbar logs-resize logs-resize logs-resize logs-resize logs-resize right-toolbar'
+    'left-toolbar logs logs logs logs logs right-toolbar';
     height: 100vh;
     background: #050505;
     color: #f5f5f5;
+    --side-toolbar-width: 32px;
 }
 
 .toolbar {
@@ -44,12 +45,15 @@
 
 .panel__header {
     grid-area: panel-header;
-    padding: 4px 6px;
+    padding: 4px 8px;
     border-bottom: 1px solid #1f1f1f;
     font-size: 0.9rem;
-    text-transform: uppercase;
     letter-spacing: 0.04em;
     color: #9d9d9d;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
 }
 
 .panel__body {
@@ -58,8 +62,49 @@
     overflow: auto;
 }
 
+.panel__title {
+    text-transform: uppercase;
+}
+
+.material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1em;
+    height: 1em;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+}
+
 .panel__body--flush {
     padding: 0;
+}
+
+.panel__body--editor {
+    width: 100%;
+    height: 100%;
+    display: flex;
+}
+
+.panel--expanded {
+    box-shadow: inset 0 0 0 1px #0a0a0a;
+}
+
+.panel--collapsed {
+    display: none;
+}
+
+.panel--collapsed .panel__body {
+    display: none;
 }
 
 .panel--hidden {
@@ -68,7 +113,6 @@
 
 .project-tree {
     grid-area: project-tree;
-    /*min-width: 100px;*/
 }
 
 .project-tree .panel__body {
@@ -83,9 +127,12 @@
     min-height: 0;
 }
 
+.editor-hidden {
+    display: none;
+}
+
 .card-preview {
     grid-area: card-preview;
-    /*min-width: 100px;*/
 }
 
 .card-preview .panel__body {
@@ -96,7 +143,6 @@
 
 .logs {
     grid-area: logs;
-    /*min-height: 100px;*/
 }
 
 .resize-handle {
@@ -107,6 +153,13 @@
 .resize-handle:hover,
 .resize-handle:active {
     background: #2b2b2b;
+}
+
+.resize-handle[data-state='disabled'] {
+    cursor: default;
+    pointer-events: none;
+    background: #141414;
+    opacity: 0.6;
 }
 
 .resize-handle--vertical {
@@ -127,6 +180,69 @@
 
 .resize-handle--logs {
     grid-area: logs-resize;
+}
+
+.side-toolbar {
+    background: #0d0d0d;
+    border-right: 1px solid #1f1f1f;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 2px;
+}
+
+.side-toolbar--left {
+    grid-area: left-toolbar;
+}
+
+.side-toolbar--right {
+    grid-area: right-toolbar;
+    border-left: 1px solid #1f1f1f;
+    border-right: none;
+}
+
+.side-toolbar__section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.side-toolbar__section--bottom {
+    margin-top: auto;
+}
+
+.side-toolbar__button {
+    background: transparent;
+    border: none;
+    border-radius: 2px;
+    color: #dcdcdc;
+    padding: 4px 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.side-toolbar__button:hover {
+    background: #1f1f1f;
+    border-color: #3a3a3a;
+    color: #ffffff;
+}
+
+.side-toolbar__button:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 1px;
+}
+
+.side-toolbar__button .material-symbols-outlined {
+    font-size: 22px;
+}
+
+.side-toolbar__button[data-state='collapsed'] {
+    background: #0f0f0f;
+    border-color: #2c2c2c;
+    color: #a6a6a6;
 }
 
 .placeholder-text {

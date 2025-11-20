@@ -14,6 +14,7 @@ import {ProjectTreePanel} from './components/ProjectTreePanel';
 import './App.css';
 
 const MIN_PANEL_SIZE = 150;
+const COLLAPSED_THICKNESS = 0;
 
 function App() {
   const [rootPath, setRootPath] = useState<string | null>(null);
@@ -24,6 +25,12 @@ function App() {
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [previewWidth, setPreviewWidth] = useState(360);
   const [logsHeight, setLogsHeight] = useState(200);
+  const [previousSidebarWidth, setPreviousSidebarWidth] = useState(sidebarWidth);
+  const [previousPreviewWidth, setPreviousPreviewWidth] = useState(previewWidth);
+  const [previousLogsHeight, setPreviousLogsHeight] = useState(logsHeight);
+  const [isProjectTreeCollapsed, setIsProjectTreeCollapsed] = useState(false);
+  const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false);
+  const [isLogsCollapsed, setIsLogsCollapsed] = useState(false);
 
   type DragTarget = 'sidebar' | 'preview' | 'logs';
   const dragState = useRef<{
@@ -78,9 +85,36 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isProjectTreeCollapsed) {
+      setPreviousSidebarWidth(sidebarWidth);
+    }
+  }, [isProjectTreeCollapsed, sidebarWidth]);
+
+  useEffect(() => {
+    if (!isPreviewCollapsed) {
+      setPreviousPreviewWidth(previewWidth);
+    }
+  }, [isPreviewCollapsed, previewWidth]);
+
+  useEffect(() => {
+    if (!isLogsCollapsed) {
+      setPreviousLogsHeight(logsHeight);
+    }
+  }, [isLogsCollapsed, logsHeight]);
+
   function beginDrag(target: DragTarget, event: ReactPointerEvent<HTMLDivElement>) {
     event.preventDefault();
+    const isSidebarTarget = target === 'sidebar';
+    const isPreviewTarget = target === 'preview';
+    const isLogsTarget = target === 'logs';
+
+    if ((isSidebarTarget && isProjectTreeCollapsed) || (isPreviewTarget && isPreviewCollapsed) || (isLogsTarget && isLogsCollapsed)) {
+      return;
+    }
+
     event.currentTarget.setPointerCapture(event.pointerId);
+
     dragState.current = {
       target,
       startX: event.clientX,
@@ -89,6 +123,33 @@ function App() {
       initialPreviewWidth: previewWidth,
       initialLogsHeight: logsHeight,
     };
+  }
+
+  function toggleProjectTree() {
+    if (isProjectTreeCollapsed) {
+      setSidebarWidth(Math.max(MIN_PANEL_SIZE, previousSidebarWidth));
+      setIsProjectTreeCollapsed(false);
+      return;
+    }
+    setIsProjectTreeCollapsed(true);
+  }
+
+  function togglePreview() {
+    if (isPreviewCollapsed) {
+      setPreviewWidth(Math.max(MIN_PANEL_SIZE, previousPreviewWidth));
+      setIsPreviewCollapsed(false);
+      return;
+    }
+    setIsPreviewCollapsed(true);
+  }
+
+  function toggleLogs() {
+    if (isLogsCollapsed) {
+      setLogsHeight(Math.max(MIN_PANEL_SIZE, previousLogsHeight));
+      setIsLogsCollapsed(false);
+      return;
+    }
+    setIsLogsCollapsed(true);
   }
 
   async function handleOpenProject() {
@@ -124,9 +185,9 @@ function App() {
     <div
       className="app-grid"
       style={{
-        '--sidebar-width': `${sidebarWidth}px`,
-        '--preview-width': `${previewWidth}px`,
-        '--logs-height': `${logsHeight}px`,
+        '--sidebar-width': `${isProjectTreeCollapsed ? COLLAPSED_THICKNESS : sidebarWidth}px`,
+        '--preview-width': `${isPreviewCollapsed ? COLLAPSED_THICKNESS : previewWidth}px`,
+        '--logs-height': `${isLogsCollapsed ? COLLAPSED_THICKNESS : logsHeight}px`,
       } as CSSProperties}
     >
       <header className="toolbar">
@@ -140,17 +201,49 @@ function App() {
         </div>
       </header>
 
+      <aside className="side-toolbar side-toolbar--left">
+        <div className="side-toolbar__section side-toolbar__section--top">
+          <button
+            type="button"
+            className="side-toolbar__button"
+            aria-label={isProjectTreeCollapsed ? 'Expand project tree' : 'Collapse project tree'}
+            data-state={isProjectTreeCollapsed ? 'collapsed' : 'expanded'}
+            onClick={toggleProjectTree}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined">
+              folder
+            </span>
+          </button>
+        </div>
+        <div className="side-toolbar__section side-toolbar__section--bottom">
+          <button
+            type="button"
+            className="side-toolbar__button"
+            aria-label={isLogsCollapsed ? 'Expand logs' : 'Collapse logs'}
+            data-state={isLogsCollapsed ? 'collapsed' : 'expanded'}
+            onClick={toggleLogs}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined">
+              terminal
+            </span>
+          </button>
+        </div>
+      </aside>
+
       <ProjectTreePanel
         tree={tree}
         selectedPath={selectedFile?.path}
         onSelectFile={handleSelectFile}
+        collapsed={isProjectTreeCollapsed}
       />
 
       <div
         className="resize-handle resize-handle--vertical resize-handle--sidebar"
+        data-state={isProjectTreeCollapsed ? 'disabled' : 'active'}
         role="separator"
         aria-label="Resize project tree"
         aria-orientation="vertical"
+        aria-disabled={isProjectTreeCollapsed}
         onPointerDown={(event) => beginDrag('sidebar', event)}
       />
 
@@ -161,25 +254,45 @@ function App() {
         isVisible={Boolean(rootPath)}
       />
 
-      <CardPreviewPanel />
+      <CardPreviewPanel collapsed={isPreviewCollapsed} />
 
       <div
         className="resize-handle resize-handle--vertical resize-handle--preview"
+        data-state={isPreviewCollapsed ? 'disabled' : 'active'}
         role="separator"
         aria-label="Resize card preview"
         aria-orientation="vertical"
+        aria-disabled={isPreviewCollapsed}
         onPointerDown={(event) => beginDrag('preview', event)}
       />
 
       <div
         className="resize-handle resize-handle--horizontal resize-handle--logs"
+        data-state={isLogsCollapsed ? 'disabled' : 'active'}
         role="separator"
         aria-label="Resize logs panel"
         aria-orientation="horizontal"
+        aria-disabled={isLogsCollapsed}
         onPointerDown={(event) => beginDrag('logs', event)}
       />
 
-      <LogsPanel />
+      <LogsPanel collapsed={isLogsCollapsed} />
+
+      <aside className="side-toolbar side-toolbar--right">
+        <div className="side-toolbar__section side-toolbar__section--top">
+          <button
+            type="button"
+            className="side-toolbar__button"
+            aria-label={isPreviewCollapsed ? 'Expand card preview' : 'Collapse card preview'}
+            data-state={isPreviewCollapsed ? 'collapsed' : 'expanded'}
+            onClick={togglePreview}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined">
+              visibility
+            </span>
+          </button>
+        </div>
+      </aside>
     </div>
   );
 }

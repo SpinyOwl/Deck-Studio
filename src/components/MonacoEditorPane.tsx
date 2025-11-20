@@ -29,6 +29,7 @@ export const MonacoEditorPane: React.FC<Props> = ({ path, value, onChange }) => 
         theme="vs-dark"
         value={value}
         onChange={(val) => onChange(val ?? '')}
+        className={`${path ? 'editor-visible' : 'editor-hidden'}`}
         options={{
           fontSize: 14,
           minimap: { enabled: false },

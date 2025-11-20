@@ -6,16 +6,17 @@ interface Props {
   readonly tree: FileNode[];
   readonly selectedPath?: string;
   readonly onSelectFile: (node: FileNode) => void;
+  readonly collapsed: boolean;
 }
 
 /**
  * Renders the project tree panel with a header and scrollable body.
  */
-export const ProjectTreePanel: React.FC<Props> = ({ tree, selectedPath, onSelectFile }) => {
+export const ProjectTreePanel: React.FC<Props> = ({ tree, selectedPath, onSelectFile, collapsed }) => {
   const hasTree = tree.length > 0;
 
   return (
-    <aside className="project-tree panel">
+    <aside className={`project-tree panel ${collapsed ? 'panel--collapsed' : 'panel--expanded'}`}>
       <div className="panel__header">Files</div>
       <div className="panel__body">
         {hasTree ? (

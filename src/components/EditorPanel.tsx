@@ -15,7 +15,7 @@ interface Props {
 export const EditorPanel: React.FC<Props> = ({ path, value, onChange, isVisible }) => {
   return (
     <section className={`editor panel${isVisible ? '' : ' panel--hidden'}`}>
-      <div className="panel__body panel__body--flush">
+      <div className="panel__body panel__body--flush panel__body--editor">
         <MonacoEditorPane path={path} value={value} onChange={onChange} />
       </div>
     </section>
