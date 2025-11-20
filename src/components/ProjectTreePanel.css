@@ -4,6 +4,6 @@
 }
 
 .project-tree .panel__body {
-    padding: 0;
+    padding: 4px 6px;
     overflow: auto;
 }
