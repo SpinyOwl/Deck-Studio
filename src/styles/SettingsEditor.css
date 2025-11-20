@@ -1,0 +1,91 @@
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 14, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  z-index: 20;
+}
+
+.settings-editor {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  width: min(1200px, 96vw);
+  height: min(800px, 90vh);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.settings-editor__header {
+  padding: 20px 24px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #1e293b;
+}
+
+.settings-editor__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.settings-editor__eyebrow {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-editor__title {
+  margin: 0;
+  color: #e2e8f0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.settings-editor__path {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 640px;
+}
+
+.settings-editor__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-editor__body {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 20px;
+  display: flex;
+}
+
+.settings-editor__error {
+  color: #f87171;
+  padding: 0 20px 16px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.button.button--ghost {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+}
+
+.button.button--ghost:hover {
+  border-color: #475569;
+}

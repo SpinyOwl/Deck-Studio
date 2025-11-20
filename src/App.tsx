@@ -11,6 +11,7 @@ import {EditorPanel} from './components/EditorPanel';
 import {type FileNode} from './components/FileTree';
 import {LogsPanel} from './components/LogsPanel';
 import {ProjectTreePanel} from './components/ProjectTreePanel';
+import {SettingsModal} from './components/SettingsModal';
 import './styles/AppLayout.css';
 import './styles/Panel.css';
 
@@ -38,6 +39,11 @@ function App() {
   const [isProjectTreeCollapsed, setIsProjectTreeCollapsed] = useState(false);
   const [isPreviewCollapsed, setIsPreviewCollapsed] = useState(false);
   const [isLogsCollapsed, setIsLogsCollapsed] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsContent, setSettingsContent] = useState('');
+  const [settingsPath, setSettingsPath] = useState('');
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   type DragTarget = 'sidebar' | 'preview' | 'logs';
   const dragState = useRef<{
@@ -214,10 +220,53 @@ function App() {
   }
 
   /**
-   * Placeholder for opening the settings panel.
+   * Opens the settings modal by hydrating it with the persisted YAML.
    */
-  function handleOpenSettings() {
-    // No-op for now. Implementation will be added later.
+  async function handleOpenSettings() {
+    setSettingsError(null);
+    try {
+      const settings = await window.api.loadSettings();
+      setSettingsContent(settings.content);
+      setSettingsPath(settings.path);
+      setIsSettingsOpen(true);
+    } catch (error) {
+      console.error('Failed to load settings', error);
+      setSettingsError('Unable to load settings file.');
+      setIsSettingsOpen(true);
+    }
+  }
+
+  /**
+   * Tracks edits to the YAML content inside the settings modal.
+   * @param val Updated YAML content.
+   */
+  function handleSettingsChange(val: string) {
+    setSettingsContent(val);
+  }
+
+  /**
+   * Saves the YAML configuration back to disk using the main process.
+   */
+  async function handleSaveSettings() {
+    setSettingsError(null);
+    setIsSavingSettings(true);
+    try {
+      const result = await window.api.saveSettings(settingsContent);
+      setSettingsPath(result.path);
+      setIsSettingsOpen(false);
+    } catch (error) {
+      console.error('Failed to save settings', error);
+      setSettingsError('Unable to save settings.');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  }
+
+  /**
+   * Closes the settings modal without persisting changes.
+   */
+  function handleCloseSettings() {
+    setIsSettingsOpen(false);
   }
 
   /**
@@ -420,6 +469,17 @@ function App() {
           </button>
         </div>
       </aside>
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        content={settingsContent}
+        path={settingsPath}
+        error={settingsError}
+        isSaving={isSavingSettings}
+        onChange={handleSettingsChange}
+        onClose={handleCloseSettings}
+        onSave={handleSaveSettings}
+      />
     </div>
   );
 }
