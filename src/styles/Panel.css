@@ -27,7 +27,7 @@
 
 .panel__body {
     grid-area: panel-body;
-    padding: 16px;
+    padding: 4px 6px;
     overflow: auto;
 }
 
