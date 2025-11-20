@@ -6,11 +6,14 @@ import {
   useRef,
   useState,
 } from 'react';
-import {type FileNode, FileTree} from './components/FileTree';
-import {MonacoEditorPane} from './components/MonacoEditorPane';
+import {CardPreviewPanel} from './components/CardPreviewPanel';
+import {EditorPanel} from './components/EditorPanel';
+import {type FileNode} from './components/FileTree';
+import {LogsPanel} from './components/LogsPanel';
+import {ProjectTreePanel} from './components/ProjectTreePanel';
 import './App.css';
 
-const MIN_PANEL_SIZE = 50;
+const MIN_PANEL_SIZE = 150;
 
 function App() {
   const [rootPath, setRootPath] = useState<string | null>(null);
@@ -112,6 +115,11 @@ function App() {
     setDirty(false);
   }
 
+  function handleEditorChange(val: string) {
+    setContent(val);
+    setDirty(true);
+  }
+
   return (
     <div
       className="app-grid"
@@ -132,14 +140,11 @@ function App() {
         </div>
       </header>
 
-      <aside className="project-tree">
-        <div className="panel-title">Files</div>
-        {tree.length === 0 ? (
-          <div className="placeholder-text">Open a project folder to see files here.</div>
-        ) : (
-          <FileTree nodes={tree} selectedPath={selectedFile?.path} onSelectFile={handleSelectFile} />
-        )}
-      </aside>
+      <ProjectTreePanel
+        tree={tree}
+        selectedPath={selectedFile?.path}
+        onSelectFile={handleSelectFile}
+      />
 
       <div
         className="resize-handle resize-handle--vertical resize-handle--sidebar"
@@ -149,21 +154,14 @@ function App() {
         onPointerDown={(event) => beginDrag('sidebar', event)}
       />
 
-      <section className={`editor ${rootPath ? '' : 'editor--hidden'}`}>
-        <MonacoEditorPane
-          path={selectedFile?.path}
-          value={content}
-          onChange={(val) => {
-            setContent(val);
-            setDirty(true);
-          }}
-        />
-      </section>
+      <EditorPanel
+        path={selectedFile?.path}
+        value={content}
+        onChange={handleEditorChange}
+        isVisible={Boolean(rootPath)}
+      />
 
-      <section className="card-preview">
-        <div className="panel-title">Card preview</div>
-        <div className="placeholder-text">Select a card file to see a preview.</div>
-      </section>
+      <CardPreviewPanel />
 
       <div
         className="resize-handle resize-handle--vertical resize-handle--preview"
@@ -181,10 +179,7 @@ function App() {
         onPointerDown={(event) => beginDrag('logs', event)}
       />
 
-      <section className="logs">
-        <div className="panel-title">Logs</div>
-        <div className="placeholder-text">Build, lint, and runtime logs will appear here.</div>
-      </section>
+      <LogsPanel />
     </div>
   );
 }
