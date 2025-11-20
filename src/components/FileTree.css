@@ -29,8 +29,8 @@
 }
 
 .file-tree__row--file.is-selected {
-    background: #2e3b4e;
-    color: #ffffff;
+    background: var(--color-tree-selection);
+    color: var(--color-tree-selection-text);
 }
 
 .file-tree__row.is-selected .file-tree__icon {
@@ -48,20 +48,20 @@
     justify-content: center;
     align-items: center;
     font-size: 18px;
-    color: #cfd8e3;
+    color: var(--color-tree-icon);
 }
 
 .file-tree__chevron-icon {
-    color: #9ca3af;
+    color: var(--color-tree-chevron);
     font-size: 18px;
 }
 
 .file-tree__icon--dir {
-    color: #fbbf24;
+    color: var(--color-tree-dir-icon);
 }
 
 .file-tree__icon--file {
-    color: #a5b4fc;
+    color: var(--color-tree-file-icon);
 }
 
 .file-tree__name {
