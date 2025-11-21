@@ -12,6 +12,7 @@ import {type FileNode} from './components/FileTree';
 import {LogsPanel} from './components/LogsPanel';
 import {ProjectTreePanel} from './components/ProjectTreePanel';
 import {SettingsModal} from './components/SettingsModal';
+import {logService} from './services/LogService';
 import './styles/AppLayout.css';
 import './styles/Panel.css';
 
@@ -93,6 +94,10 @@ function App() {
     initialPreviewWidth: number;
     initialLogsHeight: number;
   } | null>(null);
+
+  useEffect(() => {
+    logService.add('Deck Studio ready.');
+  }, []);
 
   useEffect(() => {
     function handlePointerMove(event: PointerEvent) {
@@ -281,18 +286,22 @@ function App() {
    */
   async function handleOpenProject() {
     const res = await window.api.selectProjectFolder();
-    if (!res) return;
+    if (!res) {
+      logService.add('Project selection cancelled.', 'warning');
+      return;
+    }
     setRootPath(res.rootPath);
     setTree(res.tree);
     setOpenFiles([]);
     setActiveFilePath(null);
+    logService.add(`Loaded project at ${res.rootPath}`);
   }
 
   /**
    * Placeholder for creating a new project.
    */
   function handleCreateProject() {
-    // No-op for now. Implementation will be added later.
+    logService.add('Create project is not implemented yet.', 'warning');
   }
 
   /**
@@ -319,6 +328,7 @@ function App() {
         { path: node.path, name: node.name, content: dataUrl, isDirty: false, fileType: 'image' },
       ]);
       setActiveFilePath(node.path);
+      logService.add(`Opened image file ${node.name}`);
       return;
     }
 
@@ -328,6 +338,7 @@ function App() {
       { path: node.path, name: node.name, content: text, isDirty: false, fileType: 'text' },
     ]);
     setActiveFilePath(node.path);
+    logService.add(`Opened text file ${node.name}`);
   }
 
   /**
@@ -344,6 +355,7 @@ function App() {
         file.path === activeFilePath ? { ...file, isDirty: false } : file,
       ),
     );
+    logService.add(`Saved ${targetFile.name}`);
   }
 
   /**
@@ -356,10 +368,12 @@ function App() {
       setSettingsContent(settings.content);
       setSettingsPath(settings.path);
       setIsSettingsOpen(true);
+      logService.add(`Loaded settings from ${settings.path}`);
     } catch (error) {
       console.error('Failed to load settings', error);
       setSettingsError('Unable to load settings file.');
       setIsSettingsOpen(true);
+      logService.add('Unable to load settings file.', 'error');
     }
   }
 
@@ -380,10 +394,12 @@ function App() {
     try {
       const result = await window.api.saveSettings(settingsContent);
       setSettingsPath(result.path);
+      logService.add(`Settings saved to ${result.path}`);
       setIsSettingsOpen(false);
     } catch (error) {
       console.error('Failed to save settings', error);
-      setSettingsError('Unable to save settings.');
+      setSettingsError('Unable to save settings. Please check your YAML syntax.');
+      logService.add('Unable to save settings. Please check your YAML syntax.', 'error');
     } finally {
       setIsSavingSettings(false);
     }
