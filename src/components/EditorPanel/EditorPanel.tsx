@@ -35,7 +35,24 @@ export const EditorPanel: React.FC<Props> = ({
   onChange,
   isVisible,
 }) => {
+  const tabRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
   const activeFile = openFiles.find(file => file.path === activePath);
+
+  React.useEffect(() => {
+    if (!activePath) {
+      return;
+    }
+
+    const activeTab = tabRefs.current[activePath];
+
+    if (activeTab) {
+      activeTab.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      });
+    }
+  }, [activePath]);
 
   return (
     <section className={`editor panel${isVisible ? '' : ' panel--hidden'}`}>
@@ -48,6 +65,9 @@ export const EditorPanel: React.FC<Props> = ({
             return (
               <div
                 key={file.path}
+                ref={(element) => {
+                  tabRefs.current[file.path] = element;
+                }}
                 className={`editor__tab ${isActive ? 'is-active' : ''}`.trim()}
                 role="tab"
                 aria-selected={isActive}
