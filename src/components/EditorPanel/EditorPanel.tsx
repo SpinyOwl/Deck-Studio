@@ -1,5 +1,6 @@
 // src/components/EditorPanel/EditorPanel.tsx
 import React from 'react';
+import {ImageViewer} from '../ImageViewer';
 import {MonacoEditorPane} from '../MonacoEditorPane';
 import './EditorPanel.css';
 
@@ -8,6 +9,7 @@ interface OpenFile {
   readonly name: string;
   readonly content: string;
   readonly isDirty: boolean;
+  readonly fileType: 'text' | 'image';
 }
 
 interface Props {
@@ -77,7 +79,13 @@ export const EditorPanel: React.FC<Props> = ({
       </div>
       <div className="panel__body panel__body--flush panel__body--editor">
         {activeFile ? (
-          <MonacoEditorPane path={activeFile.path} value={activeFile.content} onChange={onChange} />
+          activeFile.fileType === 'image' ? (
+            <div className="editor__viewer">
+              <ImageViewer src={activeFile.content} alt={activeFile.name} />
+            </div>
+          ) : (
+            <MonacoEditorPane path={activeFile.path} value={activeFile.content} onChange={onChange} />
+          )
         ) : (
           <div className="editor__empty-editor">Select a file to edit.</div>
         )}

@@ -137,6 +137,12 @@ ipcMain.handle('read-file', async (_event, filePath) => {
     return fs.readFile(filePath, 'utf8');
 });
 
+ipcMain.handle('read-binary-file', async (_event, filePath) => {
+    const buffer = await fs.readFile(filePath);
+
+    return buffer.toString('base64');
+});
+
 ipcMain.handle('write-file', async (_event, filePath, content) => {
     await fs.writeFile(filePath, content, 'utf8');
     return true;

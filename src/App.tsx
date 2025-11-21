@@ -17,16 +17,52 @@ import './styles/Panel.css';
 
 const MIN_PANEL_SIZE = 150;
 const COLLAPSED_THICKNESS = 0;
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg'];
+
+type FileType = 'text' | 'image';
+
+type OpenFile = {
+  path: string;
+  name: string;
+  content: string;
+  isDirty: boolean;
+  fileType: FileType;
+};
+
+/**
+ * Checks whether the provided file path points to a supported image file.
+ *
+ * @param path - Absolute file system path of the file to inspect.
+ * @returns True when the extension matches a known image type.
+ */
+function isImageFile(path: string): boolean {
+  const lowerPath = path.toLowerCase();
+
+  return IMAGE_EXTENSIONS.some(extension => lowerPath.endsWith(extension));
+}
+
+/**
+ * Infers a MIME type for a file path, defaulting to a safe fallback when unknown.
+ *
+ * @param path - Absolute file system path of the file to inspect.
+ * @returns MIME type string suitable for data URLs.
+ */
+function getImageMimeType(path: string): string {
+  const lowerPath = path.toLowerCase();
+
+  if (lowerPath.endsWith('.png')) return 'image/png';
+  if (lowerPath.endsWith('.jpg') || lowerPath.endsWith('.jpeg')) return 'image/jpeg';
+  if (lowerPath.endsWith('.gif')) return 'image/gif';
+  if (lowerPath.endsWith('.bmp')) return 'image/bmp';
+  if (lowerPath.endsWith('.webp')) return 'image/webp';
+  if (lowerPath.endsWith('.svg')) return 'image/svg+xml';
+
+  return 'application/octet-stream';
+}
 
 function App() {
   const [rootPath, setRootPath] = useState<string | null>(null);
   const [tree, setTree] = useState<FileNode[]>([]);
-  type OpenFile = {
-    path: string;
-    name: string;
-    content: string;
-    isDirty: boolean;
-  };
 
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
@@ -198,8 +234,24 @@ function App() {
       return;
     }
 
+    const isImage = isImageFile(node.path);
+    if (isImage) {
+      const base64Content = await window.api.readBinaryFile(node.path);
+      const mimeType = getImageMimeType(node.path);
+      const dataUrl = `data:${mimeType};base64,${base64Content}`;
+      setOpenFiles(prev => [
+        ...prev,
+        { path: node.path, name: node.name, content: dataUrl, isDirty: false, fileType: 'image' },
+      ]);
+      setActiveFilePath(node.path);
+      return;
+    }
+
     const text = await window.api.readFile(node.path);
-    setOpenFiles(prev => [...prev, { path: node.path, name: node.name, content: text, isDirty: false }]);
+    setOpenFiles(prev => [
+      ...prev,
+      { path: node.path, name: node.name, content: text, isDirty: false, fileType: 'text' },
+    ]);
     setActiveFilePath(node.path);
   }
 
@@ -209,7 +261,7 @@ function App() {
   async function handleSave() {
     if (!activeFilePath) return;
     const targetFile = openFiles.find(file => file.path === activeFilePath);
-    if (!targetFile) return;
+    if (!targetFile || targetFile.fileType !== 'text') return;
 
     await window.api.writeFile(targetFile.path, targetFile.content);
     setOpenFiles(prev =>
@@ -279,7 +331,7 @@ function App() {
 
     setOpenFiles(prev =>
       prev.map(file =>
-        file.path === activeFilePath
+        file.path === activeFilePath && file.fileType === 'text'
           ? { ...file, content: val, isDirty: true }
           : file,
       ),
