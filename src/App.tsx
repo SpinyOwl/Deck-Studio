@@ -13,6 +13,8 @@ import {LogsPanel} from './components/LogsPanel';
 import {ProjectTreePanel} from './components/ProjectTreePanel';
 import {SettingsModal} from './components/SettingsModal';
 import {logService} from './services/LogService';
+import {fileService} from './services/FileService';
+import {projectService} from './services/ProjectService';
 import './styles/AppLayout.css';
 import './styles/Panel.css';
 
@@ -285,16 +287,25 @@ function App() {
    * Opens an existing project folder and hydrates the editor state with its tree.
    */
   async function handleOpenProject() {
-    const res = await window.api.selectProjectFolder();
+    const res = await projectService.selectProject();
     if (!res) {
       logService.add('Project selection cancelled.', 'warning');
       return;
     }
+
+    const configPath = projectService.resolveProjectConfigPath(res.rootPath);
+
     setRootPath(res.rootPath);
     setTree(res.tree);
     setOpenFiles([]);
     setActiveFilePath(null);
     logService.add(`Loaded project at ${res.rootPath}`);
+
+    if (res.config) {
+      logService.add(`Parsed ${configPath}: ${JSON.stringify(res.config, null, 2)}`);
+    } else {
+      logService.add('No card-deck-project.yml found in the selected project.', 'warning');
+    }
   }
 
   /**
@@ -318,27 +329,32 @@ function App() {
       return;
     }
 
-    const isImage = isImageFile(node.path);
-    if (isImage) {
-      const base64Content = await window.api.readBinaryFile(node.path);
-      const mimeType = getImageMimeType(node.path);
-      const dataUrl = `data:${mimeType};base64,${base64Content}`;
+    try {
+      const isImage = isImageFile(node.path);
+      if (isImage) {
+        const base64Content = await fileService.readBinaryFile(node.path);
+        const mimeType = getImageMimeType(node.path);
+        const dataUrl = `data:${mimeType};base64,${base64Content}`;
+        setOpenFiles(prev => [
+          ...prev,
+          { path: node.path, name: node.name, content: dataUrl, isDirty: false, fileType: 'image' },
+        ]);
+        setActiveFilePath(node.path);
+        logService.add(`Opened image file ${node.name}`);
+        return;
+      }
+
+      const text = await fileService.readTextFile(node.path);
       setOpenFiles(prev => [
         ...prev,
-        { path: node.path, name: node.name, content: dataUrl, isDirty: false, fileType: 'image' },
+        { path: node.path, name: node.name, content: text, isDirty: false, fileType: 'text' },
       ]);
       setActiveFilePath(node.path);
-      logService.add(`Opened image file ${node.name}`);
-      return;
+      logService.add(`Opened text file ${node.name}`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      logService.add(`Failed to open ${node.name}: ${reason}`, 'error');
     }
-
-    const text = await window.api.readFile(node.path);
-    setOpenFiles(prev => [
-      ...prev,
-      { path: node.path, name: node.name, content: text, isDirty: false, fileType: 'text' },
-    ]);
-    setActiveFilePath(node.path);
-    logService.add(`Opened text file ${node.name}`);
   }
 
   /**
@@ -349,13 +365,18 @@ function App() {
     const targetFile = openFiles.find(file => file.path === activeFilePath);
     if (!targetFile || targetFile.fileType !== 'text') return;
 
-    await window.api.writeFile(targetFile.path, targetFile.content);
-    setOpenFiles(prev =>
-      prev.map(file =>
-        file.path === activeFilePath ? { ...file, isDirty: false } : file,
-      ),
-    );
-    logService.add(`Saved ${targetFile.name}`);
+    try {
+      await fileService.saveTextFile(targetFile.path, targetFile.content);
+      setOpenFiles(prev =>
+        prev.map(file =>
+          file.path === activeFilePath ? { ...file, isDirty: false } : file,
+        ),
+      );
+      logService.add(`Saved ${targetFile.name}`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      logService.add(`Failed to save ${targetFile.name}: ${reason}`, 'error');
+    }
   }
 
   /**
