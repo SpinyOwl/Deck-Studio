@@ -5,3 +5,4 @@
 - Follow clean code principles (DRY, KISS, SOLID, etc.)
 - Use semicolons.
 - JSDoc is mandatory.
+- Add tests whenever possible.
