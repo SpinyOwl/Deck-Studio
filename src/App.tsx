@@ -17,6 +17,9 @@ import './styles/Panel.css';
 
 const MIN_PANEL_SIZE = 150;
 const COLLAPSED_THICKNESS = 0;
+const SIDE_TOOLBAR_WIDTH = 32;
+const RESIZE_HANDLE_THICKNESS = 4;
+const MIN_EDITOR_WIDTH = MIN_PANEL_SIZE;
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg'];
 
 type FileType = 'text' | 'image';
@@ -151,6 +154,78 @@ function App() {
       setPreviousLogsHeight(logsHeight);
     }
   }, [isLogsCollapsed, logsHeight]);
+
+  /**
+   * Adjusts resizable panel widths when the viewport becomes smaller than the
+   * combined panel widths to prevent the layout from overflowing the window.
+   */
+  useEffect(() => {
+    function clampPanelsToViewport() {
+      const viewportWidth = window.innerWidth;
+      const reservedWidth =
+        SIDE_TOOLBAR_WIDTH * 2 + RESIZE_HANDLE_THICKNESS * 2 + MIN_EDITOR_WIDTH;
+      const availableWidth = viewportWidth - reservedWidth;
+
+      if (availableWidth <= 0) {
+        return;
+      }
+
+      const minSidebarSpace = isProjectTreeCollapsed ? COLLAPSED_THICKNESS : MIN_PANEL_SIZE;
+      const minPreviewSpace = isPreviewCollapsed ? COLLAPSED_THICKNESS : MIN_PANEL_SIZE;
+      const minimumRequiredWidth = minSidebarSpace + minPreviewSpace;
+
+      if (availableWidth < minimumRequiredWidth) {
+        if (!isProjectTreeCollapsed) {
+          setSidebarWidth(minSidebarSpace);
+        }
+
+        if (!isPreviewCollapsed) {
+          setPreviewWidth(minPreviewSpace);
+        }
+        return;
+      }
+
+      const sidebarSpace = isProjectTreeCollapsed ? COLLAPSED_THICKNESS : sidebarWidth;
+      const previewSpace = isPreviewCollapsed ? COLLAPSED_THICKNESS : previewWidth;
+      const combinedResizableWidth = sidebarSpace + previewSpace;
+
+      if (combinedResizableWidth <= availableWidth) {
+        return;
+      }
+
+      const overflow = combinedResizableWidth - availableWidth;
+      const sidebarFlex = Math.max(sidebarSpace - minSidebarSpace, 0);
+      const previewFlex = Math.max(previewSpace - minPreviewSpace, 0);
+      const totalFlex = sidebarFlex + previewFlex;
+
+      if (totalFlex <= 0) {
+        return;
+      }
+
+      const sidebarReduction = (sidebarFlex / totalFlex) * overflow;
+      const previewReduction = (previewFlex / totalFlex) * overflow;
+
+      if (!isProjectTreeCollapsed) {
+        setSidebarWidth(Math.max(minSidebarSpace, sidebarSpace - sidebarReduction));
+      }
+
+      if (!isPreviewCollapsed) {
+        setPreviewWidth(Math.max(minPreviewSpace, previewSpace - previewReduction));
+      }
+    }
+
+    clampPanelsToViewport();
+    window.addEventListener('resize', clampPanelsToViewport);
+
+    return () => {
+      window.removeEventListener('resize', clampPanelsToViewport);
+    };
+  }, [
+    isPreviewCollapsed,
+    isProjectTreeCollapsed,
+    previewWidth,
+    sidebarWidth,
+  ]);
 
   function beginDrag(target: DragTarget, event: ReactPointerEvent<HTMLDivElement>) {
     event.preventDefault();

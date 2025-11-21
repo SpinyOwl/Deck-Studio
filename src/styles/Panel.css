@@ -24,12 +24,14 @@
     justify-content: space-between;
     gap: 6px;
     height: 32px;
+    user-select: none;
 }
 
 .panel__body {
     grid-area: panel-body;
     padding: 4px 6px;
     overflow: auto;
+    user-select: none;
 }
 
 .panel__title {
