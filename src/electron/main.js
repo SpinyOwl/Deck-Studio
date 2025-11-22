@@ -6,9 +6,14 @@ const fs = require('fs').promises;
 const isDev = !app.isPackaged;
 
 async function createWindow() {
+    const layoutState = await loadLayoutState();
+    const { width, height, x, y } = layoutState.window;
+
     const win = new BrowserWindow({
-        width: 1200,
-        height: 800,
+        width,
+        height,
+        ...(typeof x === 'number' ? { x } : {}),
+        ...(typeof y === 'number' ? { y } : {}),
         minWidth: 800,
         minHeight: 600,
         webPreferences: {
@@ -17,6 +22,12 @@ async function createWindow() {
             contextIsolation: true
         }
     });
+
+    if (layoutState.window.isMaximized) {
+        win.once('ready-to-show', () => win.maximize());
+    }
+
+    trackWindowBounds(win);
 
     if (isDev) {
         await win.loadURL('http://localhost:5173/');
@@ -28,6 +39,25 @@ async function createWindow() {
 
 const SETTINGS_DIR_NAME = 'SpinyOwl.DeckStudio';
 const SETTINGS_FILE_NAME = 'settings.yml';
+const LAYOUT_FILE_NAME = 'layout.json';
+const DEFAULT_LAYOUT_STATE = {
+    window: {
+        width: 1200,
+        height: 800,
+        x: null,
+        y: null,
+        isMaximized: false
+    },
+    panels: {
+        sidebarWidth: 280,
+        previewWidth: 360,
+        logsHeight: 200,
+        isProjectTreeCollapsed: false,
+        isPreviewCollapsed: false,
+        isLogsCollapsed: false
+    }
+};
+let layoutStateCache = normalizeLayoutState(DEFAULT_LAYOUT_STATE);
 const SETTINGS_TEMPLATE = `# Deck Studio application settings
 # theme: Controls the editor theme. Allowed values: dark, light.
 theme: dark
@@ -57,8 +87,9 @@ function getSettingsPaths() {
     const appDataPath = app.getPath('appData');
     const settingsDir = path.join(appDataPath, SETTINGS_DIR_NAME);
     const settingsFile = path.join(settingsDir, SETTINGS_FILE_NAME);
+    const layoutFile = path.join(settingsDir, LAYOUT_FILE_NAME);
 
-    return { settingsDir, settingsFile };
+    return { settingsDir, settingsFile, layoutFile };
 }
 
 /**
@@ -77,6 +108,148 @@ async function ensureSettingsFile() {
     }
 
     return { settingsDir, settingsFile };
+}
+
+/**
+ * Normalizes panel layout values to ensure they are finite numbers and booleans.
+ *
+ * @param {Partial<typeof DEFAULT_LAYOUT_STATE.panels>} panels - Partial panel state to normalize.
+ * @returns {typeof DEFAULT_LAYOUT_STATE.panels} Normalized panel state merged with defaults.
+ */
+function normalizePanels(panels = {}) {
+    return {
+        sidebarWidth: Number.isFinite(panels.sidebarWidth)
+            ? panels.sidebarWidth
+            : DEFAULT_LAYOUT_STATE.panels.sidebarWidth,
+        previewWidth: Number.isFinite(panels.previewWidth)
+            ? panels.previewWidth
+            : DEFAULT_LAYOUT_STATE.panels.previewWidth,
+        logsHeight: Number.isFinite(panels.logsHeight)
+            ? panels.logsHeight
+            : DEFAULT_LAYOUT_STATE.panels.logsHeight,
+        isProjectTreeCollapsed: Boolean(panels.isProjectTreeCollapsed),
+        isPreviewCollapsed: Boolean(panels.isPreviewCollapsed),
+        isLogsCollapsed: Boolean(panels.isLogsCollapsed)
+    };
+}
+
+/**
+ * Normalizes window bounds to ensure finite numeric values and a boolean maximized flag.
+ *
+ * @param {Partial<typeof DEFAULT_LAYOUT_STATE.window>} windowState - Partial window state to normalize.
+ * @returns {typeof DEFAULT_LAYOUT_STATE.window} Normalized window state merged with defaults.
+ */
+function normalizeWindowState(windowState = {}) {
+    return {
+        width: Number.isFinite(windowState.width)
+            ? windowState.width
+            : DEFAULT_LAYOUT_STATE.window.width,
+        height: Number.isFinite(windowState.height)
+            ? windowState.height
+            : DEFAULT_LAYOUT_STATE.window.height,
+        x: Number.isFinite(windowState.x) ? windowState.x : null,
+        y: Number.isFinite(windowState.y) ? windowState.y : null,
+        isMaximized: Boolean(windowState.isMaximized)
+    };
+}
+
+/**
+ * Merges layout state with defaults to guarantee required keys exist.
+ *
+ * @param {Partial<typeof DEFAULT_LAYOUT_STATE>} state - Partial layout state from disk or IPC payloads.
+ * @returns {typeof DEFAULT_LAYOUT_STATE} Normalized layout state.
+ */
+function normalizeLayoutState(state = {}) {
+    return {
+        window: normalizeWindowState(state.window),
+        panels: normalizePanels(state.panels)
+    };
+}
+
+/**
+ * Loads persisted layout configuration from disk, falling back to defaults when missing.
+ *
+ * @returns {Promise<typeof DEFAULT_LAYOUT_STATE>} Layout state retrieved from disk or defaults.
+ */
+async function loadLayoutState() {
+    const { layoutFile, settingsDir } = getSettingsPaths();
+    await fs.mkdir(settingsDir, { recursive: true });
+
+    try {
+        const raw = await fs.readFile(layoutFile, 'utf8');
+        const parsed = JSON.parse(raw);
+        layoutStateCache = normalizeLayoutState(parsed);
+    } catch {
+        layoutStateCache = normalizeLayoutState(DEFAULT_LAYOUT_STATE);
+    }
+
+    return layoutStateCache;
+}
+
+/**
+ * Persists layout configuration to disk and updates the in-memory cache.
+ *
+ * @param {Partial<typeof DEFAULT_LAYOUT_STATE>} nextState - New layout values to merge and persist.
+ * @returns {Promise<typeof DEFAULT_LAYOUT_STATE>} Persisted layout state.
+ */
+async function saveLayoutState(nextState) {
+    const { layoutFile, settingsDir } = getSettingsPaths();
+    await fs.mkdir(settingsDir, { recursive: true });
+
+    const merged = normalizeLayoutState({
+        ...layoutStateCache,
+        ...nextState,
+        window: {
+            ...layoutStateCache.window,
+            ...(nextState.window ?? {})
+        },
+        panels: {
+            ...layoutStateCache.panels,
+            ...(nextState.panels ?? {})
+        }
+    });
+
+    layoutStateCache = merged;
+    await fs.writeFile(layoutFile, JSON.stringify(merged, null, 2), 'utf8');
+
+    return merged;
+}
+
+/**
+ * Hooks into BrowserWindow move/resize events to keep layout state in sync.
+ *
+ * @param {BrowserWindow} win - Window instance to observe.
+ */
+function trackWindowBounds(win) {
+    const persistBounds = async () => {
+        if (win.isMinimized() || win.isDestroyed()) {
+            return;
+        }
+
+        const bounds = win.getBounds();
+        await saveLayoutState({
+            window: {
+                width: bounds.width,
+                height: bounds.height,
+                x: bounds.x,
+                y: bounds.y,
+                isMaximized: win.isMaximized()
+            }
+        });
+    };
+
+    win.on('resize', persistBounds);
+    win.on('move', persistBounds);
+    win.on('maximize', async () => {
+        await saveLayoutState({
+            window: {
+                ...layoutStateCache.window,
+                isMaximized: true
+            }
+        });
+    });
+    win.on('unmaximize', persistBounds);
+    win.on('close', persistBounds);
 }
 
 app.whenReady().then(() => {
@@ -162,4 +335,12 @@ ipcMain.handle('save-settings', async (_event, content) => {
     await fs.writeFile(settingsFile, content, 'utf8');
 
     return { path: settingsFile, content };
+});
+
+ipcMain.handle('load-layout-state', async () => {
+    return loadLayoutState();
+});
+
+ipcMain.handle('save-layout-state', async (_event, partialLayout) => {
+    return saveLayoutState(partialLayout ?? {});
 });

@@ -7,5 +7,7 @@ contextBridge.exposeInMainWorld('api', {
     readBinaryFile: (filePath) => ipcRenderer.invoke('read-binary-file', filePath),
     writeFile: (filePath, content) => ipcRenderer.invoke('write-file', filePath, content),
     loadSettings: () => ipcRenderer.invoke('load-settings'),
-    saveSettings: (content) => ipcRenderer.invoke('save-settings', content)
+    saveSettings: (content) => ipcRenderer.invoke('save-settings', content),
+    loadLayoutState: () => ipcRenderer.invoke('load-layout-state'),
+    saveLayoutState: (payload) => ipcRenderer.invoke('save-layout-state', payload)
 });

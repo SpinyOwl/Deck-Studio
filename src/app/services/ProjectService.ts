@@ -135,7 +135,7 @@ export class ProjectService {
     const cardTemplateCount = Object.keys(templates.cardTemplates).length;
     if (cardTemplateCount > 0) {
       logService.add(`Loaded ${cardTemplateCount} card-specific template(s).`);
-      for (let cardTemplatesKey in templates.cardTemplates) {
+      for (const cardTemplatesKey in templates.cardTemplates) {
         logService.add(`  - ${cardTemplatesKey}`);
       }
     }

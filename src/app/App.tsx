@@ -14,6 +14,7 @@ import {SettingsModal} from './components/SettingsModal';
 import {logService} from './services/LogService';
 import {fileService} from './services/FileService';
 import {projectService} from './services/ProjectService';
+import {layoutService} from './services/LayoutService';
 import {type FileNode} from './types/files';
 import {type Project} from './types/project';
 import './styles/AppLayout.css';
@@ -96,9 +97,34 @@ function App() {
     initialPreviewWidth: number;
     initialLogsHeight: number;
   } | null>(null);
+  const layoutHydrated = useRef(false);
 
   useEffect(() => {
     logService.add('Deck Studio ready.');
+  }, []);
+
+  useEffect(() => {
+    async function hydrateLayout() {
+      try {
+        const layout = await layoutService.loadLayout();
+        setSidebarWidth(layout.panels.sidebarWidth);
+        setPreviewWidth(layout.panels.previewWidth);
+        setLogsHeight(layout.panels.logsHeight);
+        setPreviousSidebarWidth(layout.panels.sidebarWidth);
+        setPreviousPreviewWidth(layout.panels.previewWidth);
+        setPreviousLogsHeight(layout.panels.logsHeight);
+        setIsProjectTreeCollapsed(layout.panels.isProjectTreeCollapsed);
+        setIsPreviewCollapsed(layout.panels.isPreviewCollapsed);
+        setIsLogsCollapsed(layout.panels.isLogsCollapsed);
+      } catch (error) {
+        console.error('Failed to hydrate layout state', error);
+        logService.add('Unable to restore saved layout. Using defaults.', 'warning');
+      } finally {
+        layoutHydrated.current = true;
+      }
+    }
+
+    hydrateLayout();
   }, []);
 
   useEffect(() => {
@@ -232,6 +258,33 @@ function App() {
     isProjectTreeCollapsed,
     previewWidth,
     sidebarWidth,
+  ]);
+
+  useEffect(() => {
+    if (!layoutHydrated.current) {
+      return;
+    }
+
+    layoutService
+      .savePanels({
+        sidebarWidth,
+        previewWidth,
+        logsHeight,
+        isProjectTreeCollapsed,
+        isPreviewCollapsed,
+        isLogsCollapsed,
+      })
+      .catch(error => {
+        console.error('Failed to persist layout state', error);
+        logService.add('Unable to save layout preferences.', 'error');
+      });
+  }, [
+    sidebarWidth,
+    previewWidth,
+    logsHeight,
+    isProjectTreeCollapsed,
+    isPreviewCollapsed,
+    isLogsCollapsed,
   ]);
 
   function beginDrag(target: DragTarget, event: ReactPointerEvent<HTMLDivElement>) {
