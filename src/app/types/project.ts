@@ -2,6 +2,13 @@
 import {type FileNode} from './files';
 
 /**
+ * Represents a single row from the cards CSV file keyed by column name.
+ */
+export interface CardRecord {
+  [column: string]: string;
+}
+
+/**
  * Configuration schema describing project metadata and rendering defaults.
  */
 export interface ProjectConfig {
@@ -50,6 +57,7 @@ export interface Project {
   configPath: string;
   tree: FileNode[];
   config: ProjectConfig | null;
+  cards: CardRecord[] | null;
 }
 
 export type DimensionUnit = 'mm' | 'cm' | 'inch' | 'px';

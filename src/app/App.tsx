@@ -305,6 +305,12 @@ function App() {
     } else {
       logService.add('No card-deck-project.yml found in the selected project.', 'warning');
     }
+
+    if (nextProject.cards !== null) {
+      logService.add(`Loaded ${nextProject.cards.length} cards from cards.csv.`);
+    } else {
+      logService.add('No cards.csv found in the selected project.', 'warning');
+    }
   }
 
   /**
