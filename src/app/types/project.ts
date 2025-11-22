@@ -1,4 +1,5 @@
 // src/types/project.ts
+import {type FileNode} from './files';
 
 /**
  * Configuration schema describing project metadata and rendering defaults.
@@ -39,6 +40,16 @@ export interface ProjectConfig {
 
   // Allow extra fields without type errors
   [key: string]: unknown;
+}
+
+/**
+ * Captures a loaded project including its configuration and file tree.
+ */
+export interface Project {
+  rootPath: string;
+  configPath: string;
+  tree: FileNode[];
+  config: ProjectConfig | null;
 }
 
 export type DimensionUnit = 'mm' | 'cm' | 'inch' | 'px';

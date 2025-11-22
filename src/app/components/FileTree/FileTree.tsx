@@ -1,13 +1,7 @@
 // src/components/FileTree/FileTree.tsx
 import React, {useEffect, useState} from 'react';
+import {type FileNode} from '../../types/files';
 import './FileTree.css';
-
-export interface FileNode {
-  type: 'file' | 'dir';
-  name: string;
-  path: string;
-  children?: FileNode[];
-}
 
 interface Props {
   nodes: FileNode[];

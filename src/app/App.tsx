@@ -8,13 +8,14 @@ import {
 } from 'react';
 import {CardPreviewPanel} from './components/CardPreviewPanel';
 import {EditorPanel} from './components/EditorPanel';
-import {type FileNode} from './components/FileTree';
 import {LogsPanel} from './components/LogsPanel';
 import {ProjectTreePanel} from './components/ProjectTreePanel';
 import {SettingsModal} from './components/SettingsModal';
 import {logService} from './services/LogService';
 import {fileService} from './services/FileService';
 import {projectService} from './services/ProjectService';
+import {type FileNode} from './types/files';
+import {type Project} from './types/project';
 import './styles/AppLayout.css';
 import './styles/Panel.css';
 
@@ -67,8 +68,7 @@ function getImageMimeType(path: string): string {
 }
 
 function App() {
-  const [rootPath, setRootPath] = useState<string | null>(null);
-  const [tree, setTree] = useState<FileNode[]>([]);
+  const [project, setProject] = useState<Project | null>(null);
 
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
@@ -287,22 +287,21 @@ function App() {
    * Opens an existing project folder and hydrates the editor state with its tree.
    */
   async function handleOpenProject() {
-    const res = await projectService.selectProject();
-    if (!res) {
+    const nextProject = await projectService.selectProject();
+    if (!nextProject) {
       logService.add('Project selection cancelled.', 'warning');
       return;
     }
 
-    const configPath = projectService.resolveProjectConfigPath(res.rootPath);
-
-    setRootPath(res.rootPath);
-    setTree(res.tree);
+    setProject(nextProject);
     setOpenFiles([]);
     setActiveFilePath(null);
-    logService.add(`Loaded project at ${res.rootPath}`);
+    logService.add(`Loaded project at ${nextProject.rootPath}`);
 
-    if (res.config) {
-      logService.add(`Parsed ${configPath}: ${JSON.stringify(res.config, null, 2)}`);
+    if (nextProject.config) {
+      logService.add(
+        `Parsed ${nextProject.configPath}: ${JSON.stringify(nextProject.config, null, 2)}`,
+      );
     } else {
       logService.add('No card-deck-project.yml found in the selected project.', 'warning');
     }
@@ -468,6 +467,8 @@ function App() {
   }
 
   const activeFile = openFiles.find(file => file.path === activeFilePath) ?? null;
+  const projectPath = project?.rootPath ?? null;
+  const projectTree = project?.tree ?? [];
 
   return (
     <div
@@ -481,7 +482,7 @@ function App() {
       <header className="toolbar">
         <div className="toolbar__title">
           <span className="toolbar__app-name">Deck Studio</span>
-          {rootPath ? (
+          {projectPath ? (
             <div className="toolbar__project">
               <span aria-hidden="true" className="material-symbols-outlined toolbar__chevron">
                 chevron_right
@@ -489,7 +490,7 @@ function App() {
               <span aria-hidden="true" className="material-symbols-outlined toolbar__project-icon">
                 folder_open
               </span>
-              <span className="toolbar__project-path">{rootPath}</span>
+              <span className="toolbar__project-path">{projectPath}</span>
             </div>
           ) : null}
         </div>
@@ -569,7 +570,7 @@ function App() {
       </aside>
 
       <ProjectTreePanel
-        tree={tree}
+        tree={projectTree}
         selectedPath={activeFile?.path}
         onSelectFile={handleSelectFile}
         collapsed={isProjectTreeCollapsed}
@@ -591,7 +592,7 @@ function App() {
         onChange={handleEditorChange}
         onSelectFile={setActiveFilePath}
         onCloseFile={handleCloseFile}
-        isVisible={Boolean(rootPath)}
+        isVisible={Boolean(project)}
       />
 
       <CardPreviewPanel collapsed={isPreviewCollapsed} />

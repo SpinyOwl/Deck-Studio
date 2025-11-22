@@ -1,12 +1,7 @@
 // src/global.d.ts
-export {};
+import type {FileNode} from './types/files';
 
-interface FileNode {
-  type: 'file' | 'dir';
-  name: string;
-  path: string;
-  children?: FileNode[];
-}
+export {};
 
 declare global {
   interface Window {

@@ -5,6 +5,7 @@
 .logs__body {
     font-family: 'Roboto Mono', monospace;
     color: var(--color-text-primary);
+    user-select: text;
 }
 
 .logs__list {

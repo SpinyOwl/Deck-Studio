@@ -1,18 +1,12 @@
 // src/services/ProjectService.ts
 
-import {type FileNode} from '../components/FileTree';
-import {type ProjectConfig} from '../types/project';
+import {type FileNode} from '../types/files';
+import {type Project, type ProjectConfig} from '../types/project';
 import {fileService, FileService} from './FileService';
 import {logService} from './LogService';
 import {yamlParsingService, YamlParsingService} from './YamlParsingService';
 
 const PROJECT_CONFIG_FILENAME = 'card-deck-project.yml';
-
-export interface ProjectSelectionResult {
-  rootPath: string;
-  tree: FileNode[];
-  config: ProjectConfig | null;
-}
 
 /**
  * Coordinates project-specific operations such as selection and configuration loading.
@@ -28,15 +22,21 @@ export class ProjectService {
    *
    * @returns Project metadata including parsed configuration when available.
    */
-  public async selectProject(): Promise<ProjectSelectionResult | null> {
+  public async selectProject(): Promise<Project | null> {
     const selection = await window.api.selectProjectFolder();
     if (!selection) {
       return null;
     }
 
+    const configPath = this.resolveProjectConfigPath(selection.rootPath);
     const config = await this.loadProjectConfig(selection.rootPath);
 
-    return { ...selection, config };
+    return {
+      rootPath: selection.rootPath,
+      tree: selection.tree,
+      configPath,
+      config,
+    };
   }
 
   /**
