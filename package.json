@@ -2,12 +2,13 @@
   "name": "spinyowl-deck-studio",
   "version": "0.0.1",
   "private": true,
-  "main": "electron/main.js",
+  "main": "src/electron/main.js",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "build:react": "vite build",
+    "dev": "concurrently -k \"vite --config src/vite.config.ts\" \"wait-on http://localhost:5173 && electron .\"",
+    "build:react": "vite build --config src/vite.config.ts",
     "build": "npm run build:react",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "lint": "eslint --config src/eslint.config.js \"src/**/*.{ts,tsx}\""
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
@@ -39,7 +40,7 @@
     "appId": "com.yourname.carddeckstudio",
     "files": [
       "dist/**",
-      "electron/**",
+      "src/electron/**",
       "package.json"
     ],
     "directories": {

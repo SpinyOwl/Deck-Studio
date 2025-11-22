@@ -22,7 +22,7 @@ async function createWindow() {
         await win.loadURL('http://localhost:5173/');
         win.webContents.openDevTools();
     } else {
-        await win.loadFile(path.join(__dirname, '../dist/index.html'));
+        await win.loadFile(path.join(__dirname, '../../dist/index.html'));
     }
 }
 
