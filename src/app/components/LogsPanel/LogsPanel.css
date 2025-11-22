@@ -75,9 +75,40 @@
     font-weight: 600;
 }
 
+.logs__message-wrapper {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
 .logs__message {
+    display: block;
     white-space: pre-wrap;
     word-break: break-word;
+    line-height: 1.4;
+}
+
+.logs__message--collapsed {
+    max-height: 1.4em;
+    overflow: hidden;
+}
+
+.logs__toggle {
+    background: transparent;
+    border: 1px solid var(--color-accent);
+    border-radius: 4px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 2px 6px;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    align-self: flex-start;
+}
+
+.logs__toggle:hover {
+    background: var(--color-surface-muted);
+    color: var(--color-text-primary);
 }
 
 .logs__count {

@@ -9,6 +9,65 @@ interface Props {
 
 const SCROLL_THRESHOLD_PX = 8;
 
+interface LogMessageProps {
+  readonly message: string;
+}
+
+/**
+ * Displays a single log message with an expand/collapse toggle when it spans multiple lines.
+ */
+const LogMessage: React.FC<LogMessageProps> = ({ message }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [canExpand, setCanExpand] = useState(false);
+  const messageRef = useRef<HTMLSpanElement | null>(null);
+
+  useEffect(() => {
+    const element = messageRef.current;
+    const frameId = window.requestAnimationFrame(() => {
+      if (!element) {
+        setCanExpand(false);
+        return;
+      }
+
+      const { lineHeight } = window.getComputedStyle(element);
+      const parsedLineHeight = parseFloat(lineHeight);
+      if (!parsedLineHeight || Number.isNaN(parsedLineHeight)) {
+        setCanExpand(false);
+        return;
+      }
+
+      const lineCount = Math.round(element.scrollHeight / parsedLineHeight);
+      setCanExpand(lineCount > 1);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [message]);
+
+  const toggleLabel = isExpanded ? 'Collapse log message' : 'Expand log message';
+
+  return (
+    <div className="logs__message-wrapper">
+      <span
+        ref={messageRef}
+        className={`logs__message ${isExpanded ? 'logs__message--expanded' : 'logs__message--collapsed'}`}
+      >
+        {message}
+      </span>
+      {canExpand ? (
+        <button
+          type="button"
+          className="logs__toggle"
+          onClick={() => setIsExpanded(previous => !previous)}
+          aria-expanded={isExpanded}
+          aria-label={toggleLabel}
+        >
+          {isExpanded ? 'Collapse' : 'Expand'}
+        </button>
+      ) : null}
+    </div>
+  );
+};
+
 /**
  * Presents build, lint, and runtime logs in a dedicated panel.
  */
@@ -67,7 +126,7 @@ export const LogsPanel: React.FC<Props> = ({ collapsed }) => {
               <span className="logs__level">[{level}]</span>
             </td>
             <td className="logs__cell logs__cell--message">
-              <span className="logs__message">{entry.message}</span>
+              <LogMessage message={entry.message} />
             </td>
           </tr>
         );
