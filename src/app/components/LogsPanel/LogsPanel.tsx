@@ -58,13 +58,18 @@ export const LogsPanel: React.FC<Props> = ({ collapsed }) => {
           minute: '2-digit',
           second: '2-digit',
         });
+        const level = entry.level.toUpperCase();
 
         return (
-          <li key={entry.id} className={`logs__entry logs__entry--${entry.level}`}>
-            <span className="logs__timestamp">{timestamp}</span>
-            <span className="logs__level">[{entry.level.toUpperCase()}]</span>
-            <span className="logs__message">{entry.message}</span>
-          </li>
+          <tr key={entry.id} className={`logs__row logs__row--${entry.level}`}>
+            <td className="logs__cell logs__cell--timestamp">{timestamp}</td>
+            <td className="logs__cell logs__cell--level" aria-label={`Log level: ${level}`}>
+              <span className="logs__level">[{level}]</span>
+            </td>
+            <td className="logs__cell logs__cell--message">
+              <span className="logs__message">{entry.message}</span>
+            </td>
+          </tr>
         );
       }),
     [logs],
@@ -80,7 +85,22 @@ export const LogsPanel: React.FC<Props> = ({ collapsed }) => {
         {logs.length === 0 ? (
           <div className="placeholder-text">Build, lint, and runtime logs will appear here.</div>
         ) : (
-          <ul className="logs__list">{renderedLogs}</ul>
+          <table className="logs__table" cellSpacing={0} cellPadding={0}>
+            <thead>
+              <tr>
+                <th className="logs__header logs__header--timestamp" scope="col">
+                  Time
+                </th>
+                <th className="logs__header logs__header--level" scope="col">
+                  Level
+                </th>
+                <th className="logs__header logs__header--message" scope="col">
+                  Message
+                </th>
+              </tr>
+            </thead>
+            <tbody>{renderedLogs}</tbody>
+          </table>
         )}
       </div>
     </section>

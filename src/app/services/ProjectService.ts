@@ -1,6 +1,5 @@
 // src/services/ProjectService.ts
 
-import {type FileNode} from '../types/files';
 import {type Project, type ProjectConfig} from '../types/project';
 import {fileService, FileService} from './FileService';
 import {logService} from './LogService';
