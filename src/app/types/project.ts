@@ -25,6 +25,11 @@ export interface ProjectConfig {
 
   layout?: CardLayoutConfig;
 
+  templates?: {
+    default?: string;
+    wrapper?: string;
+  };
+
   defaults?: {
     template?: string;
     image?: string;
@@ -58,6 +63,23 @@ export interface Project {
   tree: FileNode[];
   config: ProjectConfig | null;
   cards: CardRecord[] | null;
+  templates: ProjectTemplates;
+}
+
+/**
+ * Represents a loaded HTML template used to render cards.
+ */
+export interface LoadedTemplate {
+  path: string;
+  content: string;
+}
+
+/**
+ * Captures default and per-card templates resolved from the project configuration and CSV.
+ */
+export interface ProjectTemplates {
+  defaultTemplate?: LoadedTemplate;
+  cardTemplates: Record<string, LoadedTemplate>;
 }
 
 export type DimensionUnit = 'mm' | 'cm' | 'inch' | 'px';

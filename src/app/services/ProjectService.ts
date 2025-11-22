@@ -1,7 +1,9 @@
 // src/services/ProjectService.ts
 
 import Papa from 'papaparse';
-import {type CardRecord, type Project, type ProjectConfig} from '../types/project';
+import {
+  type CardRecord, type LoadedTemplate, type Project, type ProjectConfig, type ProjectTemplates,
+} from '../types/project';
 import {fileService, FileService} from './FileService';
 import {logService} from './LogService';
 import {yamlParsingService, YamlParsingService} from './YamlParsingService';
@@ -13,10 +15,8 @@ const CARDS_FILENAME = 'cards.csv';
  * Coordinates project-specific operations such as selection and configuration loading.
  */
 export class ProjectService {
-  public constructor(
-    private readonly files: FileService,
-    private readonly yamlParser: YamlParsingService,
-  ) {}
+  public constructor(private readonly files: FileService, private readonly yamlParser: YamlParsingService,) {
+  }
 
   /**
    * Opens the native folder picker, builds the project tree, and attempts to load the config.
@@ -32,13 +32,10 @@ export class ProjectService {
     const configPath = this.resolveProjectConfigPath(selection.rootPath);
     const config = await this.loadProjectConfig(selection.rootPath);
     const cards = await this.loadProjectCards(selection.rootPath);
+    const templates = await this.loadProjectTemplates(selection.rootPath, config, cards);
 
     return {
-      rootPath: selection.rootPath,
-      tree: selection.tree,
-      configPath,
-      config,
-      cards,
+      rootPath: selection.rootPath, tree: selection.tree, configPath, config, cards, templates,
     };
   }
 
@@ -83,6 +80,70 @@ export class ProjectService {
   }
 
   /**
+   * Loads templates referenced by the project configuration and card entries.
+   *
+   * @param rootPath - Absolute path to the project root.
+   * @param config - Parsed project configuration when available.
+   * @param cards - Parsed card entries when available.
+   * @returns Loaded templates separated by default and per-card references.
+   */
+  public async loadProjectTemplates(rootPath: string, config: ProjectConfig | null, cards: CardRecord[] | null,): Promise<ProjectTemplates> {
+    const templates: ProjectTemplates = {cardTemplates: {}};
+    const templateColumn = config?.csv?.templateColumn?.trim() || 'template';
+    const loadedTemplates = new Map<string, LoadedTemplate>();
+
+    const defaultTemplatePath = config?.templates?.default || config?.defaults?.template;
+    if (defaultTemplatePath) {
+      const absolutePath = this.resolveProjectFilePath(rootPath, defaultTemplatePath);
+      const loaded = await this.loadTemplateContent(absolutePath, loadedTemplates);
+      if (loaded) {
+        templates.defaultTemplate = loaded;
+      }
+    }
+
+    if (!cards) {
+      return templates;
+    }
+
+    const uniqueTemplatePaths = new Map<string, string>();
+    cards.forEach(card => {
+      const rawPath = card[templateColumn];
+      if (!rawPath) {
+        return;
+      }
+
+      const normalizedPath = rawPath.trim();
+      if (!normalizedPath) {
+        return;
+      }
+
+      const absolutePath = this.resolveProjectFilePath(rootPath, normalizedPath);
+      uniqueTemplatePaths.set(absolutePath, normalizedPath);
+    });
+
+    for (const [absolutePath, relativePath] of uniqueTemplatePaths.entries()) {
+      const loaded = await this.loadTemplateContent(absolutePath, loadedTemplates);
+      if (loaded) {
+        templates.cardTemplates[relativePath] = loaded;
+      }
+    }
+
+    if (templates.defaultTemplate) {
+      logService.add(`Loaded default template from ${templates.defaultTemplate.path}`);
+    }
+
+    const cardTemplateCount = Object.keys(templates.cardTemplates).length;
+    if (cardTemplateCount > 0) {
+      logService.add(`Loaded ${cardTemplateCount} card-specific template(s).`);
+      for (let cardTemplatesKey in templates.cardTemplates) {
+        logService.add(`  - ${cardTemplatesKey}`);
+      }
+    }
+
+    return templates;
+  }
+
+  /**
    * Builds the absolute path to the project configuration file for the given root directory.
    *
    * @param rootPath - Absolute path to the project root directory.
@@ -102,9 +163,7 @@ export class ProjectService {
   private resolveProjectFilePath(rootPath: string, filename: string): string {
     const usesBackslashSeparator = rootPath.includes('\\');
     const separator = usesBackslashSeparator ? '\\' : '/';
-    const normalizedRoot = rootPath.endsWith(separator)
-      ? rootPath
-      : `${rootPath}${separator}`;
+    const normalizedRoot = rootPath.endsWith(separator) ? rootPath : `${rootPath}${separator}`;
 
     return `${normalizedRoot}${filename}`;
   }
@@ -117,9 +176,7 @@ export class ProjectService {
    */
   private parseCsv(content: string): CardRecord[] {
     const {data, errors} = Papa.parse<CardRecord>(content, {
-      header: true,
-      skipEmptyLines: 'greedy',
-      transformHeader: header => header.trim(),
+      header: true, skipEmptyLines: 'greedy', transformHeader: header => header.trim(),
     });
 
     if (errors.length > 0) {
@@ -144,6 +201,33 @@ export class ProjectService {
 
         return normalized;
       });
+  }
+
+  /**
+   * Loads a template file from disk, using a cache to prevent duplicate reads.
+   *
+   * @param absolutePath - Absolute file system path to the template.
+   * @param cache - Cache of previously loaded templates keyed by absolute path.
+   * @returns Loaded template metadata, or null when the file cannot be read.
+   */
+  private async loadTemplateContent(absolutePath: string, cache: Map<string, LoadedTemplate>,): Promise<LoadedTemplate | null> {
+    const cached = cache.get(absolutePath);
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      const content = await this.files.readTextFile(absolutePath);
+      const loadedTemplate: LoadedTemplate = {path: absolutePath, content};
+      cache.set(absolutePath, loadedTemplate);
+
+      return loadedTemplate;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      logService.add(`Failed to load template at ${absolutePath}: ${reason}`, 'warning');
+
+      return null;
+    }
   }
 }
 
