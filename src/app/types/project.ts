@@ -47,6 +47,7 @@ export interface ProjectConfig {
     imageColumn?: string;
     widthColumn?: string;
     heightColumn?: string;
+    sizeUnitColumn?: string;
     countColumn?: string;
   };
 

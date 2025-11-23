@@ -701,7 +701,7 @@ function App() {
         isVisible={Boolean(project)}
       />
 
-      <CardPreviewPanel collapsed={isPreviewCollapsed} />
+      <CardPreviewPanel collapsed={isPreviewCollapsed} project={project} />
 
       <div
         className="resize-handle resize-handle--vertical resize-handle--preview"
