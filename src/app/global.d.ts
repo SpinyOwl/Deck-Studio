@@ -15,6 +15,9 @@ declare global {
       saveSettings(content: string): Promise<{ path: string; content: string }>;
       loadLayoutState(): Promise<LayoutState>;
       saveLayoutState(payload: Partial<LayoutState>): Promise<LayoutState>;
+      loadProjectFolder(rootPath: string): Promise<{ rootPath: string; tree: FileNode[] } | null>;
+      watchProjectFolder(rootPath: string): Promise<boolean>;
+      onProjectFolderChanged(callback: (rootPath: string) => void): () => void;
     };
   }
 }

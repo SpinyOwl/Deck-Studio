@@ -9,5 +9,13 @@ contextBridge.exposeInMainWorld('api', {
     loadSettings: () => ipcRenderer.invoke('load-settings'),
     saveSettings: (content) => ipcRenderer.invoke('save-settings', content),
     loadLayoutState: () => ipcRenderer.invoke('load-layout-state'),
-    saveLayoutState: (payload) => ipcRenderer.invoke('save-layout-state', payload)
+    saveLayoutState: (payload) => ipcRenderer.invoke('save-layout-state', payload),
+    loadProjectFolder: (rootPath) => ipcRenderer.invoke('load-project-folder', rootPath),
+    watchProjectFolder: (rootPath) => ipcRenderer.invoke('watch-project-folder', rootPath),
+    onProjectFolderChanged: (callback) => {
+        const subscription = (_event, payload) => callback(payload);
+        ipcRenderer.on('project-folder-changed', subscription);
+
+        return () => ipcRenderer.removeListener('project-folder-changed', subscription);
+    }
 });

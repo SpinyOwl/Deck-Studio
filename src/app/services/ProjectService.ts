@@ -4,6 +4,7 @@ import Papa from 'papaparse';
 import {
   type CardRecord, type LoadedTemplate, type Project, type ProjectConfig, type ProjectTemplates,
 } from '../types/project';
+import {type FileNode} from '../types/files';
 import {fileService, FileService} from './FileService';
 import {logService} from './LogService';
 import {yamlParsingService, YamlParsingService} from './YamlParsingService';
@@ -29,14 +30,28 @@ export class ProjectService {
       return null;
     }
 
-    const configPath = this.resolveProjectConfigPath(selection.rootPath);
-    const config = await this.loadProjectConfig(selection.rootPath);
-    const cards = await this.loadProjectCards(selection.rootPath);
-    const templates = await this.loadProjectTemplates(selection.rootPath, config, cards);
+    return this.buildProject(selection);
+  }
 
-    return {
-      rootPath: selection.rootPath, tree: selection.tree, configPath, config, cards, templates,
-    };
+  /**
+   * Reloads an existing project using its root path, rebuilding the tree and configuration data.
+   *
+   * @param rootPath - Absolute path to the project root.
+   * @returns Refreshed project metadata or null when loading fails.
+   */
+  public async reloadProject(rootPath: string): Promise<Project | null> {
+    if (!rootPath || !rootPath.trim()) {
+      logService.add('Cannot reload a project without a valid root path.', 'warning');
+      return null;
+    }
+
+    const selection = await window.api.loadProjectFolder(rootPath);
+    if (!selection) {
+      logService.add(`Unable to reload project at ${rootPath}. It may have been removed.`, 'error');
+      return null;
+    }
+
+    return this.buildProject(selection);
   }
 
   /**
@@ -166,6 +181,23 @@ export class ProjectService {
     const normalizedRoot = rootPath.endsWith(separator) ? rootPath : `${rootPath}${separator}`;
 
     return `${normalizedRoot}${filename}`;
+  }
+
+  /**
+   * Builds a fully hydrated project instance from a folder selection.
+   *
+   * @param selection - Selected project root and file tree.
+   * @returns Hydrated project metadata including config, cards, and templates.
+   */
+  private async buildProject(selection: { rootPath: string; tree: FileNode[] }): Promise<Project> {
+    const configPath = this.resolveProjectConfigPath(selection.rootPath);
+    const config = await this.loadProjectConfig(selection.rootPath);
+    const cards = await this.loadProjectCards(selection.rootPath);
+    const templates = await this.loadProjectTemplates(selection.rootPath, config, cards);
+
+    return {
+      rootPath: selection.rootPath, tree: selection.tree, configPath, config, cards, templates,
+    };
   }
 
   /**

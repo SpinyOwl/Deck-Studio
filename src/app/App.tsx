@@ -128,6 +128,53 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!project) {
+      return undefined;
+    }
+
+    const rootPath = project.rootPath;
+
+    async function startWatchingProject() {
+      try {
+        const started = await window.api.watchProjectFolder(rootPath);
+        if (!started) {
+          logService.add('Unable to start watching the project folder for changes.', 'warning');
+        }
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        logService.add(`Failed to watch project folder: ${reason}`, 'warning');
+      }
+    }
+
+    const unsubscribe = window.api.onProjectFolderChanged(async changedRootPath => {
+      if (changedRootPath !== rootPath) {
+        return;
+      }
+
+      logService.add('Detected changes in project files. Reloading project...');
+      try {
+        const reloaded = await projectService.reloadProject(changedRootPath);
+        if (!reloaded) {
+          return;
+        }
+
+        setProject(current => (current?.rootPath === changedRootPath ? reloaded : current));
+        logService.add('Project reloaded after file system updates.');
+        void startWatchingProject();
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        logService.add(`Unable to reload project after detecting changes: ${reason}`, 'error');
+      }
+    });
+
+    void startWatchingProject();
+
+    return () => {
+      unsubscribe();
+    };
+  }, [project]);
+
+  useEffect(() => {
     function handlePointerMove(event: PointerEvent) {
       const state = dragState.current;
       if (!state) return;

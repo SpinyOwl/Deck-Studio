@@ -92,7 +92,7 @@ export class LogService {
         continue;
       }
 
-      let normalizedPath = this.normalizePath(rawPath);
+      const normalizedPath = this.normalizePath(rawPath);
 
       const pathSegments = normalizedPath.split(/[\\/]/);
       return pathSegments[pathSegments.length - 1] ?? 'unknown';

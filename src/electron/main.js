@@ -1,7 +1,9 @@
 // electron/main.js
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const path = require('path');
-const fs = require('fs').promises;
+const fs = require('fs');
+
+const fsPromises = fs.promises;
 
 const isDev = !app.isPackaged;
 
@@ -99,12 +101,12 @@ function getSettingsPaths() {
 async function ensureSettingsFile() {
     const { settingsDir, settingsFile } = getSettingsPaths();
 
-    await fs.mkdir(settingsDir, { recursive: true });
+    await fsPromises.mkdir(settingsDir, { recursive: true });
 
     try {
-        await fs.access(settingsFile);
+        await fsPromises.access(settingsFile);
     } catch {
-        await fs.writeFile(settingsFile, SETTINGS_TEMPLATE, 'utf8');
+        await fsPromises.writeFile(settingsFile, SETTINGS_TEMPLATE, 'utf8');
     }
 
     return { settingsDir, settingsFile };
@@ -173,10 +175,10 @@ function normalizeLayoutState(state = {}) {
  */
 async function loadLayoutState() {
     const { layoutFile, settingsDir } = getSettingsPaths();
-    await fs.mkdir(settingsDir, { recursive: true });
+    await fsPromises.mkdir(settingsDir, { recursive: true });
 
     try {
-        const raw = await fs.readFile(layoutFile, 'utf8');
+        const raw = await fsPromises.readFile(layoutFile, 'utf8');
         const parsed = JSON.parse(raw);
         layoutStateCache = normalizeLayoutState(parsed);
     } catch {
@@ -194,7 +196,7 @@ async function loadLayoutState() {
  */
 async function saveLayoutState(nextState) {
     const { layoutFile, settingsDir } = getSettingsPaths();
-    await fs.mkdir(settingsDir, { recursive: true });
+    await fsPromises.mkdir(settingsDir, { recursive: true });
 
     const merged = normalizeLayoutState({
         ...layoutStateCache,
@@ -210,7 +212,7 @@ async function saveLayoutState(nextState) {
     });
 
     layoutStateCache = merged;
-    await fs.writeFile(layoutFile, JSON.stringify(merged, null, 2), 'utf8');
+    await fsPromises.writeFile(layoutFile, JSON.stringify(merged, null, 2), 'utf8');
 
     return merged;
 }
@@ -266,11 +268,113 @@ app.on('window-all-closed', () => {
 
 // ---- Project folder + FS helpers ----
 
+const IGNORED_DIRECTORIES = ['node_modules'];
+const IGNORED_PREFIXES = ['.git'];
+const projectWatchers = new Map();
+
+function shouldIgnoreDirectory(name) {
+    return IGNORED_DIRECTORIES.includes(name) || IGNORED_PREFIXES.some(prefix => name.startsWith(prefix));
+}
+
+/**
+ * Traverses the provided directory and collects all directories that should be watched for changes.
+ *
+ * @param {string} dir - Root directory of the project.
+ * @returns {Promise<string[]>} List of directory paths to observe.
+ */
+async function collectWatchTargets(dir) {
+    const directories = [dir];
+
+    try {
+        const entries = await fsPromises.readdir(dir, { withFileTypes: true });
+
+        for (const entry of entries) {
+            if (!entry.isDirectory() || shouldIgnoreDirectory(entry.name)) continue;
+
+            const fullPath = path.join(dir, entry.name);
+            directories.push(...(await collectWatchTargets(fullPath)));
+        }
+    } catch {
+        return directories;
+    }
+
+    return directories;
+}
+
+/**
+ * Schedules a debounced notification to the renderer that the project folder changed.
+ *
+ * @param {Electron.WebContents} webContents - Renderer to notify.
+ * @param {string} rootPath - Project root path associated with the watcher.
+ */
+function scheduleProjectReload(webContents, rootPath) {
+    const record = projectWatchers.get(webContents.id);
+    if (!record) return;
+
+    if (record.debounce) {
+        clearTimeout(record.debounce);
+    }
+
+    record.debounce = setTimeout(() => {
+        if (!webContents.isDestroyed()) {
+            webContents.send('project-folder-changed', rootPath);
+        }
+    }, 200);
+}
+
+/**
+ * Disposes all active watchers associated with the provided renderer process.
+ *
+ * @param {Electron.WebContents} webContents - Renderer that owns the watcher.
+ */
+function stopWatchingProjectFolder(webContents) {
+    const record = projectWatchers.get(webContents.id);
+    if (!record) return;
+
+    record.watchers.forEach(watcher => watcher.close());
+    if (record.debounce) {
+        clearTimeout(record.debounce);
+    }
+
+    projectWatchers.delete(webContents.id);
+}
+
+/**
+ * Recursively watches the project directory tree and emits a reload event when files change.
+ *
+ * @param {string} rootPath - Absolute path to the project root.
+ * @param {Electron.WebContents} webContents - Renderer to notify of changes.
+ * @returns {Promise<boolean>} Indicates whether watchers were established.
+ */
+async function watchProjectFolder(rootPath, webContents) {
+    if (!rootPath) return false;
+
+    stopWatchingProjectFolder(webContents);
+
+    const watchTargets = await collectWatchTargets(rootPath);
+    const watchers = watchTargets.map(target => {
+        const watcher = fs.watch(target, { persistent: false }, () => {
+            scheduleProjectReload(webContents, rootPath);
+        });
+
+        watcher.on('error', () => {});
+        return watcher;
+    });
+
+    projectWatchers.set(webContents.id, { rootPath, watchers, debounce: null });
+
+    return true;
+}
+
+app.on('web-contents-destroyed', (_event, contents) => {
+    stopWatchingProjectFolder(contents);
+});
+
 async function buildTree(dir) {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
+    const entries = await fsPromises.readdir(dir, { withFileTypes: true });
     const children = [];
     for (const entry of entries) {
-        if (entry.name === 'node_modules' || entry.name.startsWith('.git')) continue;
+        if (shouldIgnoreDirectory(entry.name)) continue;
 
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
@@ -308,31 +412,51 @@ ipcMain.handle('select-project-folder', async () => {
     return { rootPath, tree };
 });
 
+ipcMain.handle('load-project-folder', async (_event, rootPath) => {
+    if (!rootPath) return null;
+
+    try {
+        const tree = await buildTree(rootPath);
+
+        return { rootPath, tree };
+    } catch {
+        return null;
+    }
+});
+
+ipcMain.handle('watch-project-folder', async (event, rootPath) => {
+    try {
+        return watchProjectFolder(rootPath, event.sender);
+    } catch {
+        return false;
+    }
+});
+
 ipcMain.handle('read-file', async (_event, filePath) => {
-    return fs.readFile(filePath, 'utf8');
+    return fsPromises.readFile(filePath, 'utf8');
 });
 
 ipcMain.handle('read-binary-file', async (_event, filePath) => {
-    const buffer = await fs.readFile(filePath);
+    const buffer = await fsPromises.readFile(filePath);
 
     return buffer.toString('base64');
 });
 
 ipcMain.handle('write-file', async (_event, filePath, content) => {
-    await fs.writeFile(filePath, content, 'utf8');
+    await fsPromises.writeFile(filePath, content, 'utf8');
     return true;
 });
 
 ipcMain.handle('load-settings', async () => {
     const { settingsFile } = await ensureSettingsFile();
-    const content = await fs.readFile(settingsFile, 'utf8');
+    const content = await fsPromises.readFile(settingsFile, 'utf8');
 
     return { path: settingsFile, content };
 });
 
 ipcMain.handle('save-settings', async (_event, content) => {
     const { settingsFile } = await ensureSettingsFile();
-    await fs.writeFile(settingsFile, content, 'utf8');
+    await fsPromises.writeFile(settingsFile, content, 'utf8');
 
     return { path: settingsFile, content };
 });
