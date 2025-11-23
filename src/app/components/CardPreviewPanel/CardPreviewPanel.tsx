@@ -8,6 +8,7 @@ import './CardPreviewPanel.css';
 interface Props {
   readonly collapsed: boolean;
   readonly project: Project | null;
+  onChangeLocale?(locale: string): void;
 }
 
 interface ToolbarButtonProps {
@@ -196,9 +197,16 @@ function getCardLabel(card: CardRecord, index: number, config: ProjectConfig | n
 /**
  * Displays the card preview container with toolbar controls and iframe-rendered HTML.
  */
-export const CardPreviewPanel: React.FC<Props> = ({collapsed, project}) => {
+export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeLocale}) => {
   const resolvedCards = useMemo(() => project?.resolvedCards ?? [], [project]);
   const [selectedCardIndex, setSelectedCardIndex] = useState('0');
+  const localeOptions = useMemo(() => {
+    const locales = project?.localization?.availableLocales ?? [];
+
+    return locales.map(locale => ({value: locale, label: locale}));
+  }, [project?.localization?.availableLocales]);
+  const selectedLocale = project?.localization?.locale ?? '';
+  const hasLocalization = localeOptions.length > 0;
 
   const cardOptions = useMemo(() => resolvedCards.map((card, index) => ({
     value: `${index}`, label: getCardLabel(card.card, index, project?.config ?? null),
@@ -262,16 +270,15 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project}) => {
           <ToolbarButton icon="zoom_out" label="Zoom out"/>
           <ToolbarButton icon="zoom_in" label="Zoom in"/>
           <ToolbarButton icon="fit_screen" label="Zoom to fit"/>
-          <ToolbarSelect
+          {hasLocalization && (<ToolbarSelect
             placeholder="Language"
             tooltip="Language"
-            options={[{value: 'en', label: 'English'}, {value: 'es', label: 'Español'}, {
-              value: 'de', label: 'Deutsch'
-            },]}
-            value=""
-            onChange={() => {
+            options={localeOptions}
+            value={selectedLocale}
+            onChange={(value) => {
+              onChangeLocale?.(value);
             }}
-          />
+          />)}
           <ToolbarSelect
             placeholder="Card"
             tooltip="Card"

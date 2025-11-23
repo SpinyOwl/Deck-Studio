@@ -414,6 +414,26 @@ function App() {
   }
 
   /**
+   * Updates the current project to use a different localization bundle and re-render cards.
+   *
+   * @param locale - Locale code selected from the preview toolbar.
+   */
+  async function handleChangeLocale(locale: string) {
+    if (!project) {
+      return;
+    }
+
+    try {
+      const updatedProject = await projectService.changeLocale(project, locale);
+      setProject(updatedProject);
+      logService.add(`Switched localization to ${updatedProject.localization?.locale ?? locale}.`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      logService.add(`Failed to change localization: ${reason}`, 'error');
+    }
+  }
+
+  /**
    * Placeholder for creating a new project.
    */
   function handleCreateProject() {
@@ -702,7 +722,11 @@ function App() {
         isVisible={Boolean(project)}
       />
 
-      <CardPreviewPanel collapsed={isPreviewCollapsed} project={project} />
+      <CardPreviewPanel
+        collapsed={isPreviewCollapsed}
+        project={project}
+        onChangeLocale={handleChangeLocale}
+      />
 
       <div
         className="resize-handle resize-handle--vertical resize-handle--preview"

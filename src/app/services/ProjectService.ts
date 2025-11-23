@@ -3,9 +3,11 @@
 import Papa from 'papaparse';
 import {
   type CardRecord,
+  type LocalizationMessages,
   type LoadedTemplate,
   type Project,
   type ProjectConfig,
+  type ProjectLocalization,
   type ProjectTemplates,
   type ResolvedCard,
 } from '../types/project';
@@ -60,6 +62,31 @@ export class ProjectService {
   }
 
   /**
+   * Reloads localization for an existing project and re-renders card templates for the selected locale.
+   *
+   * @param project - Current project instance to update.
+   * @param locale - Locale code selected by the user.
+   * @returns Updated project with refreshed localization and resolved cards.
+   */
+  public async changeLocale(project: Project, locale: string): Promise<Project> {
+    const localization = await this.loadLocalization(project.rootPath, project.config, project.tree, locale);
+    const templateColumn = this.getTemplateColumnName(project.config);
+    const resolvedCards = this.resolveCardTemplates(
+      project.cards,
+      project.templates,
+      templateColumn,
+      localization,
+      project.config,
+    );
+
+    return {
+      ...project,
+      localization,
+      resolvedCards,
+    };
+  }
+
+  /**
    * Loads and parses the project configuration file when present.
    *
    * @param rootPath - Absolute path to the project root.
@@ -94,6 +121,42 @@ export class ProjectService {
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       logService.add(`Failed to load ${CARDS_FILENAME}: ${reason}`, 'warning');
+
+      return null;
+    }
+  }
+
+  /**
+   * Loads localization messages for the configured default locale when available.
+   *
+   * @param rootPath - Absolute path to the project root.
+   * @param config - Parsed project configuration providing localization settings.
+   * @param tree - Project file tree used to discover available locales.
+   * @param localeOverride - Locale requested by the user when different from the default.
+   * @returns Loaded localization metadata or null when missing.
+   */
+  public async loadLocalization(
+    rootPath: string,
+    config: ProjectConfig | null,
+    tree?: FileNode[],
+    localeOverride?: string,
+  ): Promise<ProjectLocalization | null> {
+
+    const directory = config?.localization?.directory?.trim() || 'i18n';
+    const availableLocales = this.collectAvailableLocales(tree ?? [], rootPath, directory);
+    const requestedLocale = localeOverride?.trim() || config?.localization?.defaultLocale?.trim() || 'en';
+    const locale = requestedLocale || availableLocales[0] || 'en';
+    const localizationPath = this.resolveProjectFilePath(rootPath, `${directory}/${locale}.yml`);
+
+    try {
+      const content = await this.files.readTextFile(localizationPath);
+      const messages = this.yamlParser.parse<LocalizationMessages>(content);
+      logService.add(`Loaded localization for locale "${locale}" from ${localizationPath}`);
+
+      return {locale, messages, availableLocales};
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      logService.add(`Failed to load localization from ${localizationPath}: ${reason}`, 'warning');
 
       return null;
     }
@@ -189,6 +252,59 @@ export class ProjectService {
   }
 
   /**
+   * Identifies available localization bundles within the configured directory.
+   *
+   * @param tree - Project file tree to search for localization files.
+   * @param rootPath - Absolute project root for path normalization.
+   * @param localizationDirectory - Relative directory containing localization YAML files.
+   * @returns Sorted list of locale codes derived from localization filenames.
+   */
+  private collectAvailableLocales(tree: FileNode[], rootPath: string, localizationDirectory: string): string[] {
+    const locales = new Set<string>();
+    const normalizedDirectory = this.normalizePathSeparators(
+      this.resolveProjectFilePath(rootPath, localizationDirectory),
+    );
+    const normalizedDirectoryWithSlash = `${normalizedDirectory}/`;
+
+    const traverse = (nodes: FileNode[]) => {
+      nodes.forEach(node => {
+        const normalizedPath = this.normalizePathSeparators(node.path);
+
+        if (
+          node.type === 'file'
+          && (normalizedPath.endsWith('.yml') || normalizedPath.endsWith('.yaml'))
+          && normalizedPath.startsWith(normalizedDirectoryWithSlash)
+        ) {
+          const locale = node.name.replace(/\.ya?ml$/i, '');
+          if (locale.trim()) {
+            locales.add(locale.trim());
+          }
+
+          return;
+        }
+
+        if (node.children && node.children.length > 0) {
+          traverse(node.children);
+        }
+      });
+    };
+
+    traverse(tree);
+
+    return Array.from(locales).sort();
+  }
+
+  /**
+   * Normalizes path separators to forward slashes for consistent comparisons.
+   *
+   * @param path - File system path to normalize.
+   * @returns Path string using forward slashes only.
+   */
+  private normalizePathSeparators(path: string): string {
+    return path.replace(/\\/g, '/');
+  }
+
+  /**
    * Builds a fully hydrated project instance from a folder selection.
    *
    * @param selection - Selected project root and file tree.
@@ -198,12 +314,20 @@ export class ProjectService {
     const configPath = this.resolveProjectConfigPath(selection.rootPath);
     const config = await this.loadProjectConfig(selection.rootPath);
     const cards = await this.loadProjectCards(selection.rootPath);
+    const localization = await this.loadLocalization(selection.rootPath, config, selection.tree);
     const templates = await this.loadProjectTemplates(selection.rootPath, config, cards);
     const templateColumn = this.getTemplateColumnName(config);
-    const resolvedCards = this.resolveCardTemplates(cards, templates, templateColumn);
+    const resolvedCards = this.resolveCardTemplates(cards, templates, templateColumn, localization, config);
 
     return {
-      rootPath: selection.rootPath, tree: selection.tree, configPath, config, cards, templates, resolvedCards,
+      rootPath: selection.rootPath,
+      tree: selection.tree,
+      configPath,
+      config,
+      cards,
+      templates,
+      localization,
+      resolvedCards,
     };
   }
 
@@ -215,6 +339,16 @@ export class ProjectService {
    */
   private getTemplateColumnName(config: ProjectConfig | null): string {
     return config?.csv?.templateColumn?.trim() || 'template';
+  }
+
+  /**
+   * Resolves the column name containing card identifiers for localization lookups.
+   *
+   * @param config - Parsed project configuration when available.
+   * @returns Normalized identifier column name.
+   */
+  private getIdColumnName(config: ProjectConfig | null): string {
+    return config?.csv?.idColumn?.trim() || 'id';
   }
 
   /**
@@ -260,7 +394,13 @@ export class ProjectService {
    * @param templateColumn - Column name used to locate a per-card template path.
    * @returns Collection of resolved cards containing rendered HTML.
    */
-  private resolveCardTemplates(cards: CardRecord[] | null, templates: ProjectTemplates, templateColumn: string): ResolvedCard[] {
+  private resolveCardTemplates(
+    cards: CardRecord[] | null,
+    templates: ProjectTemplates,
+    templateColumn: string,
+    localization: ProjectLocalization | null,
+    config: ProjectConfig | null,
+  ): ResolvedCard[] {
     if (!cards || cards.length === 0) {
       return [];
     }
@@ -268,7 +408,7 @@ export class ProjectService {
     const resolved: ResolvedCard[] = [];
 
     cards.forEach((card, index) => {
-      const rendered = this.resolveCardTemplate(card, index, templates, templateColumn);
+      const rendered = this.resolveCardTemplate(card, index, templates, templateColumn, localization, config);
       if (rendered) {
         resolved.push(rendered);
       }
@@ -286,7 +426,14 @@ export class ProjectService {
    * @param templateColumn - Column name containing the template path reference.
    * @returns Resolved card metadata and HTML, or null when no template is available.
    */
-  private resolveCardTemplate(card: CardRecord, index: number, templates: ProjectTemplates, templateColumn: string): ResolvedCard | null {
+  private resolveCardTemplate(
+    card: CardRecord,
+    index: number,
+    templates: ProjectTemplates,
+    templateColumn: string,
+    localization: ProjectLocalization | null,
+    config: ProjectConfig | null,
+  ): ResolvedCard | null {
     const requestedPath = card[templateColumn]?.trim();
     const cardTemplate = requestedPath ? templates.cardTemplates[requestedPath] : undefined;
 
@@ -313,7 +460,7 @@ export class ProjectService {
       return null;
     }
 
-    const html = this.renderCardHtml(template.content, card, index);
+    const html = this.renderCardHtml(template.content, card, index, localization, config);
     const templatePath = cardTemplate && requestedPath ? requestedPath : template.path;
 
     return {index, html, templatePath, card};
@@ -327,7 +474,19 @@ export class ProjectService {
    * @param index - Zero-based index of the card for meta placeholders.
    * @returns Rendered HTML string with placeholders replaced.
    */
-  private renderCardHtml(templateContent: string, card: CardRecord, index: number): string {
+  private renderCardHtml(
+    templateContent: string,
+    card: CardRecord,
+    index: number,
+    localization: ProjectLocalization | null,
+    config: ProjectConfig | null,
+  ): string {
+    const withLocalization = this.replaceLocalizationPlaceholders(
+      templateContent,
+      card,
+      localization,
+      this.getIdColumnName(config),
+    );
     const replacements: Record<string, string> = {
       index: String(index),
       index1: String(index + 1),
@@ -337,7 +496,131 @@ export class ProjectService {
 
     return Object
       .entries(replacements)
-      .reduce((rendered, [placeholder, value]) => this.replacePlaceholder(rendered, placeholder, value ?? ''), templateContent);
+      .reduce((rendered, [placeholder, value]) => this.replacePlaceholder(rendered, placeholder, value ?? ''), withLocalization);
+  }
+
+  /**
+   * Resolves localization placeholders within a template, using card metadata for card-specific keys.
+   *
+   * @param template - Template content potentially containing localization placeholders.
+   * @param card - Card data providing IDs and CSV fallbacks.
+   * @param localization - Loaded localization bundle when available.
+   * @param idColumn - Column name that holds card identifiers.
+   * @returns Template content with localization placeholders replaced or gracefully downgraded.
+   */
+  private replaceLocalizationPlaceholders(
+    template: string,
+    card: CardRecord,
+    localization: ProjectLocalization | null,
+    idColumn: string,
+  ): string {
+    const cardId = card[idColumn]?.trim();
+    const messages = localization?.messages;
+    const pattern = /{{\s*(?:t|i18n):([^}]+)\s*}}/g;
+
+    return template.replace(pattern, (_match, rawKey: string) => {
+      const trimmedKey = rawKey.trim();
+      const normalizedKey = this.normalizeLocalizationKey(trimmedKey, cardId);
+      if (messages) {
+        const localized = this.lookupLocalizationValue(messages, normalizedKey);
+        if (localized !== undefined) {
+          return localized;
+        }
+      }
+
+      const fallback = this.resolveLocalizationFallback(trimmedKey, card);
+
+      return fallback ?? this.renderMissingLocalizationPlaceholder(trimmedKey);
+    });
+  }
+
+  /**
+   * Converts shorthand localization keys into their fully qualified form.
+   *
+   * @param key - Raw localization key from the template placeholder.
+   * @param cardId - Identifier for the current card, when present.
+   * @returns Normalized localization lookup key.
+   */
+  private normalizeLocalizationKey(key: string, cardId?: string): string {
+    const [namespace, ...segments] = key.split('.');
+
+    if (namespace === 'card' && segments.length > 0 && cardId) {
+      const remainder = segments.join('.');
+
+      return `cards.${cardId}.${remainder}`;
+    }
+
+    return key;
+  }
+
+  /**
+   * Retrieves a localized value using a dotted lookup path.
+   *
+   * @param messages - Root localization messages object.
+   * @param key - Dotted path representing the localization lookup key.
+   * @returns Matching localized string when found.
+   */
+  private lookupLocalizationValue(messages: LocalizationMessages, key: string): string | undefined {
+    const segments = key.split('.');
+    let current: unknown = messages;
+
+    for (const segment of segments) {
+      if (!segment || typeof current !== 'object' || current === null) {
+        return undefined;
+      }
+
+      current = (current as Record<string, unknown>)[segment];
+    }
+
+    return typeof current === 'string' ? current : undefined;
+  }
+
+  /**
+   * Provides a CSV fallback value when localization cannot be resolved.
+   *
+   * @param rawKey - Original localization key from the template.
+   * @param card - Card data row used for fallback values.
+   * @returns Value from the CSV or an empty string when unavailable.
+   */
+  private resolveLocalizationFallback(rawKey: string, card: CardRecord): string | null {
+    const fallbackField = this.getFallbackFieldName(rawKey);
+
+    if (!fallbackField) {
+      return null;
+    }
+
+    const fallbackValue = card[fallbackField];
+
+    return fallbackValue === undefined || fallbackValue === null ? null : fallbackValue;
+  }
+
+  /**
+   * Extracts a field name from a localization key for CSV fallback usage.
+   *
+   * @param rawKey - Localization key referencing a card or namespace field.
+   * @returns Field name suitable for CSV lookup when present.
+   */
+  private getFallbackFieldName(rawKey: string): string | null {
+    const segments = rawKey.split('.');
+    const lastSegment = segments[segments.length - 1]?.trim();
+
+    if (!lastSegment) {
+      return null;
+    }
+
+    return lastSegment;
+  }
+
+  /**
+   * Wraps an unresolved localization placeholder in a highlighted span for visibility.
+   *
+   * @param rawKey - Original localization key from the template.
+   * @returns Styled HTML preserving the placeholder for debugging.
+   */
+  private renderMissingLocalizationPlaceholder(rawKey: string): string {
+    const placeholder = `{{t:${rawKey}}}`;
+
+    return `<span style="color: red; text-shadow: 0 0 2px white;">${placeholder}</span>`;
   }
 
   /**

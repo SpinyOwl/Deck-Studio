@@ -65,6 +65,7 @@ export interface Project {
   config: ProjectConfig | null;
   cards: CardRecord[] | null;
   templates: ProjectTemplates;
+  localization: ProjectLocalization | null;
   resolvedCards: ResolvedCard[];
 }
 
@@ -82,6 +83,25 @@ export interface LoadedTemplate {
 export interface ProjectTemplates {
   defaultTemplate?: LoadedTemplate;
   cardTemplates: Record<string, LoadedTemplate>;
+}
+
+/**
+ * Represents a localization file containing translations grouped by namespaces.
+ */
+export interface LocalizationMessages {
+  columns?: Record<string, string>;
+  common?: Record<string, string>;
+  cards?: Record<string, Record<string, string>>;
+  [key: string]: unknown;
+}
+
+/**
+ * Captures localization metadata loaded for a project.
+ */
+export interface ProjectLocalization {
+  locale: string;
+  availableLocales: string[];
+  messages: LocalizationMessages;
 }
 
 /**
