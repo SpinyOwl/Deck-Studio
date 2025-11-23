@@ -15,6 +15,14 @@ interface ToolbarButtonProps {
   readonly label: string;
 }
 
+interface ToolbarSelectProps {
+  readonly placeholder: string;
+  readonly tooltip: string;
+  readonly options: Array<{ value: string; label: string }>;
+  readonly onChange: (value: string) => void;
+  readonly value: string;
+}
+
 interface DimensionColumns {
   readonly widthColumn: string;
   readonly heightColumn: string;
@@ -49,24 +57,23 @@ const ToolbarButton: React.FC<ToolbarButtonProps> = ({icon, label}) => (<button
  * @param props - Select placeholder, tooltip, and option labels.
  * @returns Toolbar select element.
  */
-const ToolbarSelect: React.FC<{
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: Array<{ value: string; label: string }>;
-}> = ({label, value, onChange, options}) => (<label className="card-preview__select-wrapper">
-    <span className="card-preview__select-label">{label}</span>
-    <select
-      className="card-preview__select"
-      aria-label={label}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-    >
-      {options.map(option => (<option key={option.value} value={option.value}>
-          {option.label}
-        </option>))}
-    </select>
-  </label>);
+const ToolbarSelect: React.FC<ToolbarSelectProps> = ({placeholder, tooltip, options, onChange, value}) => (<select
+  className="card-preview__select"
+  aria-label={tooltip}
+  title={tooltip}
+  value={value}
+  defaultValue=""
+  onChange={(event) => onChange(event.target.value)}
+>
+  <option value="" disabled hidden>
+    {placeholder}
+  </option>
+
+  {options.map(option => (<option key={option.value} value={option.value}>
+    {option.label}
+  </option>))}
+</select>);
+
 
 /**
  * Normalizes the CSV column names used for dimension lookups.
@@ -239,28 +246,6 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project}) => {
             srcDoc={iframeContent}
             style={{width: `${widthPx}px`, height: `${heightPx}px`}}
           />
-        </div>
-        <div className="card-preview__toolbar" aria-label="Card preview toolbar">
-          <ToolbarButton icon="view_real_size" label="Original size"/>
-          <ToolbarButton icon="zoom_out" label="Zoom out"/>
-          <ToolbarButton icon="zoom_in" label="Zoom in"/>
-          <ToolbarButton icon="fit_screen" label="Zoom to fit"/>
-          <ToolbarSelect
-            placeholder="Language"
-            tooltip="Language"
-            options={[{value: 'en', label: 'English'}, {value: 'es', label: 'Español'}, {
-              value: 'de',
-              label: 'Deutsch'
-            },]}
-            value=""
-          />
-          <ToolbarSelect
-            placeholder="Card"
-            tooltip="Card"
-            options={cardOptions}
-            value={safeSelectedValue}
-            onChange={setSelectedCardIndex}
-          />
           <div className="card-preview__dimensions" aria-label="Card dimensions">
             <div className="card-preview__dimensions-row">
               <span className="card-preview__dimensions-label">Size:</span>
@@ -271,6 +256,29 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project}) => {
               <span>{Math.round(widthPx)} × {Math.round(heightPx)} px @ {dimensions.dpi} dpi</span>
             </div>
           </div>
+        </div>
+        <div className="card-preview__toolbar" aria-label="Card preview toolbar">
+          <ToolbarButton icon="view_real_size" label="Original size"/>
+          <ToolbarButton icon="zoom_out" label="Zoom out"/>
+          <ToolbarButton icon="zoom_in" label="Zoom in"/>
+          <ToolbarButton icon="fit_screen" label="Zoom to fit"/>
+          <ToolbarSelect
+            placeholder="Language"
+            tooltip="Language"
+            options={[{value: 'en', label: 'English'}, {value: 'es', label: 'Español'}, {
+              value: 'de', label: 'Deutsch'
+            },]}
+            value=""
+            onChange={() => {
+            }}
+          />
+          <ToolbarSelect
+            placeholder="Card"
+            tooltip="Card"
+            options={cardOptions}
+            value={safeSelectedValue}
+            onChange={setSelectedCardIndex}
+          />
         </div>
       </>)}
     </div>
