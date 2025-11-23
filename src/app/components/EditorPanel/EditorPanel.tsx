@@ -1,7 +1,7 @@
 // src/components/EditorPanel/EditorPanel.tsx
 import React from 'react';
-import {ImageViewer} from '../ImageViewer';
-import {MonacoEditorPane} from '../MonacoEditorPane';
+import { ImageViewer } from '../ImageViewer';
+import { MonacoEditorPane } from '../MonacoEditorPane';
 import './EditorPanel.css';
 
 interface OpenFile {
@@ -18,6 +18,7 @@ interface Props {
   readonly onSelectFile: (path: string) => void;
   readonly onCloseFile: (path: string) => void;
   readonly onChange: (value: string) => void;
+  readonly onSave: () => void;
   readonly isVisible: boolean;
 }
 
@@ -33,6 +34,7 @@ export const EditorPanel: React.FC<Props> = ({
   onSelectFile,
   onCloseFile,
   onChange,
+  onSave,
   isVisible,
 }) => {
   const tabRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
@@ -104,7 +106,12 @@ export const EditorPanel: React.FC<Props> = ({
               <ImageViewer src={activeFile.content} alt={activeFile.name} />
             </div>
           ) : (
-            <MonacoEditorPane path={activeFile.path} value={activeFile.content} onChange={onChange} />
+            <MonacoEditorPane
+              path={activeFile.path}
+              value={activeFile.content}
+              onChange={onChange}
+              onSave={onSave}
+            />
           )
         ) : (
           <div className="editor__empty-editor">Select a file to edit.</div>

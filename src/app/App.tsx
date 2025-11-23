@@ -696,6 +696,7 @@ function App() {
         openFiles={openFiles}
         activePath={activeFile?.path ?? null}
         onChange={handleEditorChange}
+        onSave={handleSave}
         onSelectFile={setActiveFilePath}
         onCloseFile={handleCloseFile}
         isVisible={Boolean(project)}
