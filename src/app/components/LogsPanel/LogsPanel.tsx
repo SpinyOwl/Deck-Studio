@@ -125,6 +125,9 @@ export const LogsPanel: React.FC<Props> = ({ collapsed }) => {
             <td className="logs__cell logs__cell--level" aria-label={`Log level: ${level}`}>
               <span className="logs__level">[{level}]</span>
             </td>
+            <td className="logs__cell logs__cell--source" title={entry.sourceFile}>
+              {entry.sourceFile}
+            </td>
             <td className="logs__cell logs__cell--message">
               <LogMessage message={entry.message} />
             </td>
@@ -152,6 +155,9 @@ export const LogsPanel: React.FC<Props> = ({ collapsed }) => {
                 </th>
                 <th className="logs__header logs__header--level" scope="col">
                   Level
+                </th>
+                <th className="logs__header logs__header--source" scope="col">
+                  Source
                 </th>
                 <th className="logs__header logs__header--message" scope="col">
                   Message

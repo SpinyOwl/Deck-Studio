@@ -37,6 +37,10 @@
     width: 90px;
 }
 
+.logs__header--source {
+    width: 180px;
+}
+
 .logs__row > td {
     background: var(--color-surface-muted);
     border: 1px solid var(--color-border);
@@ -73,6 +77,14 @@
 .logs__level {
     color: var(--color-text-secondary);
     font-weight: 600;
+}
+
+.logs__cell--source {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    width: 140px;
+    max-width: 200px;
 }
 
 .logs__message-wrapper {
