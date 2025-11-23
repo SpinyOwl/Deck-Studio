@@ -64,6 +64,7 @@ export interface Project {
   config: ProjectConfig | null;
   cards: CardRecord[] | null;
   templates: ProjectTemplates;
+  resolvedCards: ResolvedCard[];
 }
 
 /**
@@ -80,6 +81,16 @@ export interface LoadedTemplate {
 export interface ProjectTemplates {
   defaultTemplate?: LoadedTemplate;
   cardTemplates: Record<string, LoadedTemplate>;
+}
+
+/**
+ * Captures the rendered HTML and source metadata for a single card.
+ */
+export interface ResolvedCard {
+  index: number;
+  html: string;
+  templatePath: string;
+  card: CardRecord;
 }
 
 export type DimensionUnit = 'mm' | 'cm' | 'inch' | 'px';

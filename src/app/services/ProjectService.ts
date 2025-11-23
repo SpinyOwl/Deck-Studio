@@ -2,7 +2,12 @@
 
 import Papa from 'papaparse';
 import {
-  type CardRecord, type LoadedTemplate, type Project, type ProjectConfig, type ProjectTemplates,
+  type CardRecord,
+  type LoadedTemplate,
+  type Project,
+  type ProjectConfig,
+  type ProjectTemplates,
+  type ResolvedCard,
 } from '../types/project';
 import {type FileNode} from '../types/files';
 import {fileService, FileService} from './FileService';
@@ -102,9 +107,9 @@ export class ProjectService {
    * @param cards - Parsed card entries when available.
    * @returns Loaded templates separated by default and per-card references.
    */
-  public async loadProjectTemplates(rootPath: string, config: ProjectConfig | null, cards: CardRecord[] | null,): Promise<ProjectTemplates> {
+  public async loadProjectTemplates(rootPath: string, config: ProjectConfig | null, cards: CardRecord[] | null): Promise<ProjectTemplates> {
     const templates: ProjectTemplates = {cardTemplates: {}};
-    const templateColumn = config?.csv?.templateColumn?.trim() || 'template';
+    const templateColumn = this.getTemplateColumnName(config);
     const loadedTemplates = new Map<string, LoadedTemplate>();
 
     const defaultTemplatePath = config?.templates?.default || config?.defaults?.template;
@@ -194,10 +199,22 @@ export class ProjectService {
     const config = await this.loadProjectConfig(selection.rootPath);
     const cards = await this.loadProjectCards(selection.rootPath);
     const templates = await this.loadProjectTemplates(selection.rootPath, config, cards);
+    const templateColumn = this.getTemplateColumnName(config);
+    const resolvedCards = this.resolveCardTemplates(cards, templates, templateColumn);
 
     return {
-      rootPath: selection.rootPath, tree: selection.tree, configPath, config, cards, templates,
+      rootPath: selection.rootPath, tree: selection.tree, configPath, config, cards, templates, resolvedCards,
     };
+  }
+
+  /**
+   * Resolves a template column name using project configuration defaults.
+   *
+   * @param config - Parsed project configuration when available.
+   * @returns Normalized template column identifier.
+   */
+  private getTemplateColumnName(config: ProjectConfig | null): string {
+    return config?.csv?.templateColumn?.trim() || 'template';
   }
 
   /**
@@ -233,6 +250,120 @@ export class ProjectService {
 
         return normalized;
       });
+  }
+
+  /**
+   * Maps card entries to ready-to-render HTML using configured templates and fallbacks.
+   *
+   * @param cards - Parsed card entries from CSV.
+   * @param templates - Loaded templates referenced by the project.
+   * @param templateColumn - Column name used to locate a per-card template path.
+   * @returns Collection of resolved cards containing rendered HTML.
+   */
+  private resolveCardTemplates(cards: CardRecord[] | null, templates: ProjectTemplates, templateColumn: string): ResolvedCard[] {
+    if (!cards || cards.length === 0) {
+      return [];
+    }
+
+    const resolved: ResolvedCard[] = [];
+
+    cards.forEach((card, index) => {
+      const rendered = this.resolveCardTemplate(card, index, templates, templateColumn);
+      if (rendered) {
+        resolved.push(rendered);
+      }
+    });
+
+    return resolved;
+  }
+
+  /**
+   * Selects an appropriate template for a single card and renders its HTML content.
+   *
+   * @param card - Card data row from the CSV.
+   * @param index - Zero-based index of the card in the source CSV.
+   * @param templates - Loaded templates available for rendering.
+   * @param templateColumn - Column name containing the template path reference.
+   * @returns Resolved card metadata and HTML, or null when no template is available.
+   */
+  private resolveCardTemplate(card: CardRecord, index: number, templates: ProjectTemplates, templateColumn: string): ResolvedCard | null {
+    const requestedPath = card[templateColumn]?.trim();
+    const cardTemplate = requestedPath ? templates.cardTemplates[requestedPath] : undefined;
+
+    if (requestedPath && !cardTemplate && !templates.defaultTemplate) {
+      logService.add(
+        `Unable to render card at row ${index + 1}: template "${requestedPath}" not found and no default template configured.`,
+        'warning',
+      );
+
+      return null;
+    }
+
+    if (requestedPath && !cardTemplate && templates.defaultTemplate) {
+      logService.add(
+        `Template "${requestedPath}" missing for card at row ${index + 1}. Falling back to default template.`,
+        'warning',
+      );
+    }
+
+    const template = cardTemplate || templates.defaultTemplate;
+    if (!template) {
+      logService.add(`Unable to render card at row ${index + 1}: no template available.`, 'warning');
+
+      return null;
+    }
+
+    const html = this.renderCardHtml(template.content, card, index);
+    const templatePath = cardTemplate && requestedPath ? requestedPath : template.path;
+
+    return {index, html, templatePath, card};
+  }
+
+  /**
+   * Substitutes CSV fields and meta placeholders within a template to produce final card HTML.
+   *
+   * @param templateContent - Raw HTML fragment from the loaded template.
+   * @param card - Card data row providing replacement values.
+   * @param index - Zero-based index of the card for meta placeholders.
+   * @returns Rendered HTML string with placeholders replaced.
+   */
+  private renderCardHtml(templateContent: string, card: CardRecord, index: number): string {
+    const replacements: Record<string, string> = {
+      index: String(index),
+      index1: String(index + 1),
+      row: String(index + 1),
+      ...card,
+    };
+
+    return Object
+      .entries(replacements)
+      .reduce((rendered, [placeholder, value]) => this.replacePlaceholder(rendered, placeholder, value ?? ''), templateContent);
+  }
+
+  /**
+   * Replaces a placeholder token with its corresponding value in a template string.
+   *
+   * @param template - Template content where replacements should be applied.
+   * @param placeholder - Placeholder token to replace.
+   * @param value - Replacement value for the placeholder.
+   * @returns Template content with the placeholder substituted.
+   */
+  private replacePlaceholder(template: string, placeholder: string, value: string): string {
+    const pattern = new RegExp(`{{\\s*${this.escapeForRegex(placeholder)}\\s*}}`, 'g');
+
+    return template.replace(pattern, value);
+  }
+
+  /**
+   * Escapes a string so it can be safely used within a regular expression.
+   *
+   * @param value - Raw string to escape.
+   * @returns Regex-safe escaped string.
+   */
+  private escapeForRegex(value: string): string {
+    const specialCharactersPattern = /[.*+?^${}()|[\]\\]/g;
+
+    return value.replace(specialCharactersPattern, match => `\\${match}`);
   }
 
   /**
