@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('api', {
     saveLayoutState: (payload) => ipcRenderer.invoke('save-layout-state', payload),
     loadProjectFolder: (rootPath) => ipcRenderer.invoke('load-project-folder', rootPath),
     watchProjectFolder: (rootPath) => ipcRenderer.invoke('watch-project-folder', rootPath),
+    resolveAssetUrl: (rootPath, relativePath) => ipcRenderer.invoke('resolve-asset-url', rootPath, relativePath),
     onProjectFolderChanged: (callback) => {
         const subscription = (_event, payload) => callback(payload);
         ipcRenderer.on('project-folder-changed', subscription);

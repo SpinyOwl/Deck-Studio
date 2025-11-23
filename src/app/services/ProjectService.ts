@@ -1,5 +1,4 @@
 // src/services/ProjectService.ts
-
 import Papa from 'papaparse';
 import {
   type CardRecord,
@@ -71,12 +70,13 @@ export class ProjectService {
   public async changeLocale(project: Project, locale: string): Promise<Project> {
     const localization = await this.loadLocalization(project.rootPath, project.config, project.tree, locale);
     const templateColumn = this.getTemplateColumnName(project.config);
-    const resolvedCards = this.resolveCardTemplates(
+    const resolvedCards = await this.resolveCardTemplates(
       project.cards,
       project.templates,
       templateColumn,
       localization,
       project.config,
+      project.rootPath,
     );
 
     return {
@@ -317,7 +317,14 @@ export class ProjectService {
     const localization = await this.loadLocalization(selection.rootPath, config, selection.tree);
     const templates = await this.loadProjectTemplates(selection.rootPath, config, cards);
     const templateColumn = this.getTemplateColumnName(config);
-    const resolvedCards = this.resolveCardTemplates(cards, templates, templateColumn, localization, config);
+    const resolvedCards = await this.resolveCardTemplates(
+      cards,
+      templates,
+      templateColumn,
+      localization,
+      config,
+      selection.rootPath,
+    );
 
     return {
       rootPath: selection.rootPath,
@@ -392,27 +399,37 @@ export class ProjectService {
    * @param cards - Parsed card entries from CSV.
    * @param templates - Loaded templates referenced by the project.
    * @param templateColumn - Column name used to locate a per-card template path.
+   * @param rootPath - Absolute path to the project root for resolving relative assets.
    * @returns Collection of resolved cards containing rendered HTML.
    */
-  private resolveCardTemplates(
-    cards: CardRecord[] | null,
-    templates: ProjectTemplates,
-    templateColumn: string,
-    localization: ProjectLocalization | null,
-    config: ProjectConfig | null,
-  ): ResolvedCard[] {
+  private async resolveCardTemplates(
+   cards: CardRecord[] | null,
+   templates: ProjectTemplates,
+   templateColumn: string,
+   localization: ProjectLocalization | null,
+   config: ProjectConfig | null,
+   rootPath: string,
+  ): Promise<ResolvedCard[]> {
     if (!cards || cards.length === 0) {
       return [];
     }
 
     const resolved: ResolvedCard[] = [];
 
-    cards.forEach((card, index) => {
-      const rendered = this.resolveCardTemplate(card, index, templates, templateColumn, localization, config);
+    for (const [index, card] of cards.entries()) {
+      const rendered = await this.resolveCardTemplate(
+        card,
+        index,
+        templates,
+        templateColumn,
+        localization,
+        config,
+        rootPath,
+      );
       if (rendered) {
         resolved.push(rendered);
       }
-    });
+    }
 
     return resolved;
   }
@@ -424,16 +441,18 @@ export class ProjectService {
    * @param index - Zero-based index of the card in the source CSV.
    * @param templates - Loaded templates available for rendering.
    * @param templateColumn - Column name containing the template path reference.
+   * @param rootPath - Absolute path to the project root used to resolve relative assets.
    * @returns Resolved card metadata and HTML, or null when no template is available.
    */
-  private resolveCardTemplate(
+  private async resolveCardTemplate(
     card: CardRecord,
     index: number,
     templates: ProjectTemplates,
     templateColumn: string,
     localization: ProjectLocalization | null,
     config: ProjectConfig | null,
-  ): ResolvedCard | null {
+    rootPath: string,
+  ): Promise<ResolvedCard | null> {
     const requestedPath = card[templateColumn]?.trim();
     const cardTemplate = requestedPath ? templates.cardTemplates[requestedPath] : undefined;
 
@@ -461,9 +480,10 @@ export class ProjectService {
     }
 
     const html = this.renderCardHtml(template.content, card, index, localization, config);
+    const resolvedHtml = await this.resolveRelativeLinks(html, rootPath);
     const templatePath = cardTemplate && requestedPath ? requestedPath : template.path;
 
-    return {index, html, templatePath, card};
+    return {index, html: resolvedHtml, templatePath, card};
   }
 
   /**
@@ -497,6 +517,85 @@ export class ProjectService {
     return Object
       .entries(replacements)
       .reduce((rendered, [placeholder, value]) => this.replacePlaceholder(rendered, placeholder, value ?? ''), withLocalization);
+  }
+
+  /**
+   * Resolves relative asset references in rendered HTML to preview-safe URLs under the project root.
+   *
+   * @param html - Rendered HTML fragment that may contain relative src or href links.
+   * @param rootPath - Absolute path to the project root where asset files are located.
+   * @returns HTML with relative links replaced by project-scoped asset URLs.
+   */
+  private async resolveRelativeLinks(html: string, rootPath: string): Promise<string> {
+    const attributePattern = /(\b(?:src|href))=(["'])([^'"\s>]+)\2/gi;
+    const segments: string[] = [];
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = attributePattern.exec(html)) !== null) {
+      const [fullMatch, attribute, quote, value] = match;
+      const resolved = await this.resolveLocalAssetPath(value, rootPath);
+      const replacement = resolved ? `${attribute}=${quote}${resolved}${quote}` : fullMatch;
+
+      segments.push(html.slice(lastIndex, match.index));
+      segments.push(replacement);
+      lastIndex = match.index + fullMatch.length;
+    }
+
+    segments.push(html.slice(lastIndex));
+
+    return segments.join('');
+  }
+
+  /**
+   * Converts a relative asset path into a preview-safe URL anchored at the provided project root.
+   *
+   * @param value - Attribute value extracted from rendered HTML.
+   * @param rootPath - Absolute path to the project root where assets reside.
+   * @returns Asset URL string when the value is a relative path; otherwise null.
+   */
+  private async resolveLocalAssetPath(value: string, rootPath: string): Promise<string | null> {
+    const trimmed = value.trim();
+
+    if (!trimmed || this.isExternalUrl(trimmed) || this.isAbsolutePath(trimmed) || trimmed.startsWith('#')) {
+      return null;
+    }
+
+    const normalized = trimmed.replace(/^\.\//, '');
+
+    return window.api.resolveAssetUrl(rootPath, normalized);
+  }
+
+  /**
+   * Detects absolute file system paths for common platforms.
+   *
+   * @param value - Candidate path string.
+   * @returns True when the value represents an absolute path.
+   */
+  private isAbsolutePath(value: string): boolean {
+    const normalized = value.trim();
+
+    return normalized.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(normalized) || normalized.startsWith('\\\\');
+  }
+
+  /**
+   * Determines whether an attribute value represents an external URL and should be left untouched.
+   *
+   * @param value - Attribute value extracted from rendered HTML.
+   * @returns True when the value includes a URL scheme or protocol-relative path; otherwise false.
+   */
+  private isExternalUrl(value: string): boolean {
+    const normalized = value.trim().toLowerCase();
+
+    if (!normalized) {
+      return false;
+    }
+
+    if (normalized.startsWith('//')) {
+      return true;
+    }
+
+    return /^[a-z][a-z\d+.-]*:/.test(normalized);
   }
 
   /**

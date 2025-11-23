@@ -1,9 +1,18 @@
 // electron/main.js
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const fs = require('fs');
 
 const fsPromises = fs.promises;
+const IMAGE_MIME_BY_EXTENSION = new Map([
+    ['.png', 'image/png'],
+    ['.jpg', 'image/jpeg'],
+    ['.jpeg', 'image/jpeg'],
+    ['.gif', 'image/gif'],
+    ['.webp', 'image/webp'],
+    ['.svg', 'image/svg+xml']
+]);
 
 const isDev = !app.isPackaged;
 
@@ -166,6 +175,63 @@ function normalizeLayoutState(state = {}) {
         window: normalizeWindowState(state.window),
         panels: normalizePanels(state.panels)
     };
+}
+
+/**
+ * Resolves an asset path to a browser-safe URL, inlining supported images as data URLs to avoid
+ * file protocol restrictions when rendering previews from an http(s) origin.
+ *
+ * @param {string} rootPath - Absolute path to the project root.
+ * @param {string} relativePath - Relative asset path within the project.
+ * @returns {Promise<string | null>} Data URL for supported images, or a file URL fallback.
+ */
+async function resolveAssetUrl(rootPath, relativePath) {
+    const sanitizedRoot = typeof rootPath === 'string' ? rootPath.trim() : '';
+    const sanitizedRelative = typeof relativePath === 'string' ? relativePath.trim() : '';
+
+    if (!sanitizedRoot || !sanitizedRelative) {
+        return null;
+    }
+
+    try {
+        const normalizedRelative = sanitizedRelative.replace(/^\.\//, '');
+        const absolutePath = path.join(sanitizedRoot, normalizedRelative);
+        await fsPromises.access(absolutePath, fs.constants.R_OK);
+
+        const dataUrl = await buildDataUrl(absolutePath);
+        if (dataUrl) {
+            return dataUrl;
+        }
+
+        return pathToFileURL(absolutePath).toString();
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Constructs a data URL for common image formats, returning null when the extension is unsupported
+ * or file contents cannot be read.
+ *
+ * @param {string} absolutePath - Absolute file system path to the asset.
+ * @returns {Promise<string | null>} Data URL string when possible; otherwise null.
+ */
+async function buildDataUrl(absolutePath) {
+    const extension = path.extname(absolutePath).toLowerCase();
+    const mimeType = IMAGE_MIME_BY_EXTENSION.get(extension);
+
+    if (!mimeType) {
+        return null;
+    }
+
+    try {
+        const buffer = await fsPromises.readFile(absolutePath);
+        const base64 = buffer.toString('base64');
+
+        return `data:${mimeType};base64,${base64}`;
+    } catch {
+        return null;
+    }
 }
 
 /**
@@ -423,6 +489,8 @@ ipcMain.handle('load-project-folder', async (_event, rootPath) => {
         return null;
     }
 });
+
+ipcMain.handle('resolve-asset-url', async (_event, rootPath, relativePath) => resolveAssetUrl(rootPath, relativePath));
 
 ipcMain.handle('watch-project-folder', async (event, rootPath) => {
     try {

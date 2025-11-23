@@ -8,6 +8,7 @@ import './CardPreviewPanel.css';
 interface Props {
   readonly collapsed: boolean;
   readonly project: Project | null;
+
   onChangeLocale?(locale: string): void;
 }
 
@@ -248,12 +249,14 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
       {hasProject && !hasCards && (<div className="placeholder-text">No cards found in the loaded project.</div>)}
       {hasProject && hasCards && selectedCard && (<>
         <div className="card-preview__viewport" aria-label="Card preview area">
-          <iframe
-            title="Card preview"
-            className="card-preview__iframe"
-            srcDoc={iframeContent}
-            style={{width: `${widthPx}px`, height: `${heightPx}px`}}
-          />
+          <div className="card-preview__viewport-wrapper">
+            <iframe
+              title="Card preview"
+              className="card-preview__iframe"
+              srcDoc={iframeContent}
+              style={{width: `${widthPx}px`, height: `${heightPx}px`}}
+            />
+          </div>
           <div className="card-preview__dimensions" aria-label="Card dimensions">
             <div className="card-preview__dimensions-row">
               <span className="card-preview__dimensions-label">Size:</span>

@@ -17,6 +17,7 @@ declare global {
       saveLayoutState(payload: Partial<LayoutState>): Promise<LayoutState>;
       loadProjectFolder(rootPath: string): Promise<{ rootPath: string; tree: FileNode[] } | null>;
       watchProjectFolder(rootPath: string): Promise<boolean>;
+      resolveAssetUrl(rootPath: string, relativePath: string): Promise<string | null>;
       onProjectFolderChanged(callback: (rootPath: string) => void): () => void;
     };
   }
