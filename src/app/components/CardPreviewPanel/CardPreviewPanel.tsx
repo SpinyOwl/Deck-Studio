@@ -1,36 +1,18 @@
-// src/components/CardPreviewPanel/CardPreviewPanel.tsx
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
-  type CardRecord, defaultLayoutConfig, type DimensionUnit, type Project, type ProjectConfig, toPixels,
+  type CardRecord,
+  defaultLayoutConfig,
+  type DimensionUnit,
+  type Project,
+  type ProjectConfig,
+  toPixels,
 } from '../../types/project';
 import './CardPreviewPanel.css';
 
 interface Props {
   readonly collapsed: boolean;
   readonly project: Project | null;
-
   onChangeLocale?(locale: string): void;
-}
-
-interface ToolbarButtonProps {
-  readonly icon: string;
-  readonly label: string;
-  readonly onClick?: () => void;
-  readonly active?: boolean;
-}
-
-interface ToolbarSelectProps {
-  readonly placeholder: string;
-  readonly tooltip: string;
-  readonly options: Array<{ value: string; label: string }>;
-  readonly onChange: (value: string) => void;
-  readonly value: string;
-}
-
-interface DimensionColumns {
-  readonly widthColumn: string;
-  readonly heightColumn: string;
-  readonly sizeUnitColumn: string;
 }
 
 interface CardDimensions {
@@ -40,86 +22,43 @@ interface CardDimensions {
   readonly dpi: number;
 }
 
-/**
- * Renders an icon button for the preview toolbar.
- *
- * @param props - Icon glyph and label configuration for the button.
- * @returns Toolbar button element.
- */
-const ToolbarButton: React.FC<ToolbarButtonProps> = ({icon, label, onClick, active = false}) => (<button
-  type="button"
-  className={`card-preview__icon-button${active ? ' card-preview__icon-button--active' : ''}`}
-  aria-label={label}
-  aria-pressed={active}
-  title={label}
-  onClick={onClick}
->
-  <span aria-hidden className="material-symbols-outlined">{icon}</span>
-</button>);
-
-/**
- * Renders a select input with a placeholder entry for the preview toolbar.
- *
- * @param props - Select placeholder, tooltip, and option labels.
- * @returns Toolbar select element.
- */
-const ToolbarSelect: React.FC<ToolbarSelectProps> = ({placeholder, tooltip, options, onChange, value}) => (<select
-  className="card-preview__select"
-  aria-label={tooltip}
-  title={tooltip}
-  value={value}
-  defaultValue=""
-  onChange={(event) => onChange(event.target.value)}
->
-  <option value="" disabled hidden>
-    {placeholder}
-  </option>
-
-  {options.map(option => (<option key={option.value} value={option.value}>
-    {option.label}
-  </option>))}
-</select>);
-
-
-/**
- * Normalizes the CSV column names used for dimension lookups.
- *
- * @param config - Project configuration containing CSV overrides.
- * @returns Normalized column identifiers for width, height, and unit.
- */
-function getDimensionColumns(config: ProjectConfig | null): DimensionColumns {
-  return {
-    widthColumn: config?.csv?.widthColumn?.trim() || 'cardWidth',
-    heightColumn: config?.csv?.heightColumn?.trim() || 'cardHeight',
-    sizeUnitColumn: config?.csv?.sizeUnitColumn?.trim() || 'cardSizeUnit',
-  };
+interface PointerOrigin {
+  readonly x: number;
+  readonly y: number;
+  readonly scrollLeft: number;
+  readonly scrollTop: number;
+  readonly pointerId: number;
 }
 
 /**
- * Parses a numeric dimension value from a card record field.
+ * Generates the HTML document used inside the preview iframe.
  *
- * @param value - Raw string value from the CSV.
- * @returns Parsed number or null when empty/invalid.
+ * @param html - Raw HTML for a single card.
+ * @returns Complete HTML document string.
  */
-function parseDimension(value: string | undefined): number | null {
-  if (!value) {
-    return null;
-  }
-
-  const parsed = Number.parseFloat(value);
-
-  return Number.isFinite(parsed) ? parsed : null;
+function buildPreviewDocument(html: string): string {
+  return '<!doctype html>'
+    + '<html>'
+    + '<head>'
+    + '<style>'
+    + 'html, body { margin: 0; padding: 0; width: 100%; height: 100%; }'
+    + '* { box-sizing: border-box; }'
+    + 'body { display: flex; align-items: center; justify-content: center; background: transparent; }'
+    + '</style>'
+    + '</head>'
+    + `<body>${html}</body>`
+    + '</html>';
 }
 
 /**
- * Converts a dimension into pixels using the provided unit and DPI.
+ * Converts a dimension value to pixels based on the unit and DPI.
  *
- * @param value - Numeric dimension value.
- * @param unit - Unit used for the dimension.
- * @param dpi - Dots per inch for conversion when relevant.
- * @returns Pixel-equivalent dimension.
+ * @param value - Dimension value to convert.
+ * @param unit - Unit of the provided value.
+ * @param dpi - Dots per inch for physical units.
+ * @returns Pixel value for the provided dimension.
  */
-function toPixelDimension(value: number, unit: DimensionUnit, dpi: number): number {
+function convertToPixels(value: number, unit: DimensionUnit, dpi: number): number {
   switch (unit) {
     case 'px':
       return value;
@@ -133,19 +72,55 @@ function toPixelDimension(value: number, unit: DimensionUnit, dpi: number): numb
 }
 
 /**
- * Resolves the effective card dimensions using per-card overrides or project defaults.
+ * Normalizes the CSV column names used for card sizing overrides.
  *
- * @param card - Card record containing optional dimension overrides.
- * @param config - Project configuration providing layout defaults.
- * @returns Normalized card dimensions including unit and DPI.
+ * @param config - Project configuration containing custom column names.
+ * @returns Normalized width, height, and unit column identifiers.
  */
-function getCardDimensions(card: CardRecord | null, config: ProjectConfig | null): CardDimensions {
+function getDimensionColumns(config: ProjectConfig | null): {
+  widthColumn: string;
+  heightColumn: string;
+  sizeUnitColumn: string;
+} {
+  return {
+    widthColumn: config?.csv?.widthColumn?.trim() || 'cardWidth',
+    heightColumn: config?.csv?.heightColumn?.trim() || 'cardHeight',
+    sizeUnitColumn: config?.csv?.sizeUnitColumn?.trim() || 'cardSizeUnit',
+  };
+}
+
+/**
+ * Parses a numeric dimension value from the card record.
+ *
+ * @param value - Raw value from the CSV.
+ * @returns Parsed number or null when invalid.
+ */
+function parseDimension(value: string | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(value);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Resolves the card dimensions using per-card overrides and project defaults.
+ *
+ * @param card - Resolved card record.
+ * @param config - Project configuration for layout fallbacks.
+ * @returns Normalized card dimensions with unit and DPI.
+ */
+function resolveCardDimensions(card: CardRecord | null, config: ProjectConfig | null): CardDimensions {
   const layout = {...defaultLayoutConfig, ...(config?.layout || {})};
   const columns = getDimensionColumns(config);
   const width = parseDimension(card?.[columns.widthColumn]) ?? layout.width ?? defaultLayoutConfig.width;
   const height = parseDimension(card?.[columns.heightColumn]) ?? layout.height ?? defaultLayoutConfig.height;
-  const rawUnit = card?.[columns.sizeUnitColumn]?.toLowerCase()?.trim();
-  const unit: DimensionUnit = (rawUnit === 'mm' || rawUnit === 'cm' || rawUnit === 'inch' || rawUnit === 'px') ? rawUnit : layout.unit ?? defaultLayoutConfig.unit ?? 'inch';
+  const normalizedUnit = card?.[columns.sizeUnitColumn]?.toLowerCase()?.trim();
+  const unit: DimensionUnit = (normalizedUnit === 'px' || normalizedUnit === 'mm' || normalizedUnit === 'cm' || normalizedUnit === 'inch')
+    ? normalizedUnit
+    : layout.unit ?? defaultLayoutConfig.unit ?? 'inch';
 
   return {
     width: width ?? defaultLayoutConfig.width!,
@@ -156,37 +131,12 @@ function getCardDimensions(card: CardRecord | null, config: ProjectConfig | null
 }
 
 /**
- * Wraps card HTML in a minimal document suitable for iframe rendering.
+ * Builds a readable label for the card selector.
  *
- * @param html - Resolved card HTML fragment.
- * @returns Complete HTML document string.
- */
-function buildSrcDoc(html: string): string {
-  return `<!doctype html><html><head>  <style>
-    /* Provide a neutral base; templates can override */
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-    }
-    * { box-sizing: border-box; }
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: transparent;
-    }
-  </style></head><body>${html}</body></html>`;
-}
-
-/**
- * Generates a friendly label for the card selector.
- *
- * @param card - Card record providing optional identifier metadata.
- * @param index - Zero-based index of the card in the CSV.
- * @param config - Project configuration specifying the ID column name.
- * @returns Readable label for the card selector dropdown.
+ * @param card - Card record with an optional identifier column.
+ * @param index - Zero-based index in the resolved card list.
+ * @param config - Project configuration to customize the ID column name.
+ * @returns Display label for the selector option.
  */
 function getCardLabel(card: CardRecord, index: number, config: ProjectConfig | null): string {
   const idColumn = config?.csv?.idColumn?.trim() || 'id';
@@ -200,24 +150,69 @@ function getCardLabel(card: CardRecord, index: number, config: ProjectConfig | n
 }
 
 /**
- * Displays the card preview container with toolbar controls and iframe-rendered HTML.
+ * Renders a toolbar button.
+ *
+ * @param props - Icon, label, and handlers for the button.
+ * @returns Button element for the toolbar.
+ */
+const ToolbarButton: React.FC<{ icon: string; label: string; active?: boolean; onClick?: () => void; }> = ({
+  icon,
+  label,
+  active = false,
+  onClick,
+}) => (<button
+  type="button"
+  className={`card-preview__icon-button${active ? ' card-preview__icon-button--active' : ''}`}
+  aria-label={label}
+  aria-pressed={active}
+  title={label}
+  onClick={onClick}
+>
+  <span aria-hidden className="material-symbols-outlined">{icon}</span>
+</button>);
+
+/**
+ * Renders a select element used by the toolbar.
+ *
+ * @param props - Placeholder, tooltip, options, and change handler.
+ * @returns Select element with provided options.
+ */
+const ToolbarSelect: React.FC<{ placeholder: string; tooltip: string; options: Array<{ value: string; label: string }>; value: string; onChange: (value: string) => void; }> = ({
+  placeholder,
+  tooltip,
+  options,
+  value,
+  onChange,
+}) => (<select
+  className="card-preview__select"
+  aria-label={tooltip}
+  title={tooltip}
+  value={value}
+  onChange={(event) => onChange(event.target.value)}
+>
+  <option value="" disabled hidden>
+    {placeholder}
+  </option>
+
+  {options.map(option => (<option key={option.value} value={option.value}>
+    {option.label}
+  </option>))}
+</select>);
+
+/**
+ * Displays the preview of a single card using an iframe.
  */
 export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeLocale}) => {
   const resolvedCards = useMemo(() => project?.resolvedCards ?? [], [project]);
-  const [selectedCardIndex, setSelectedCardIndex] = useState('0');
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [manualZoom, setManualZoom] = useState(1);
-  const [isFitToViewport, setIsFitToViewport] = useState(false);
+  const [selectedCardValue, setSelectedCardValue] = useState('0');
+  const [zoom, setZoom] = useState(1);
+  const [fitToViewport, setFitToViewport] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
-  const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({width: 0, height: 0});
+  const isPanningRef = useRef(false);
+  const [viewportSize, setViewportSize] = useState({width: 0, height: 0});
   const viewportRef = useRef<HTMLDivElement | null>(null);
-  const panOriginRef = useRef<{
-    readonly x: number;
-    readonly y: number;
-    readonly scrollLeft: number;
-    readonly scrollTop: number;
-    readonly pointerId: number;
-  } | null>(null);
+  const panOriginRef = useRef<PointerOrigin | null>(null);
+
   const localeOptions = useMemo(() => {
     const locales = project?.localization?.availableLocales ?? [];
 
@@ -227,72 +222,54 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
   const hasLocalization = localeOptions.length > 0;
 
   const cardOptions = useMemo(() => resolvedCards.map((card, index) => ({
-    value: `${index}`, label: getCardLabel(card.card, index, project?.config ?? null),
+    value: `${index}`,
+    label: getCardLabel(card.card, index, project?.config ?? null),
   })), [project?.config, resolvedCards]);
 
-  const safeSelectedValue = useMemo(() => {
+  const safeSelectedCard = useMemo(() => {
     if (cardOptions.length === 0) {
       return '';
     }
 
-    const hasExactMatch = cardOptions.some(option => option.value === selectedCardIndex);
+    const hasMatch = cardOptions.some(option => option.value === selectedCardValue);
 
-    return hasExactMatch ? selectedCardIndex : cardOptions[0].value;
-  }, [cardOptions, selectedCardIndex]);
+    return hasMatch ? selectedCardValue : cardOptions[0].value;
+  }, [cardOptions, selectedCardValue]);
 
   const selectedCard = useMemo(() => {
-    if (!safeSelectedValue) {
+    if (!safeSelectedCard) {
       return null;
     }
 
-    return resolvedCards[Number.parseInt(safeSelectedValue, 10)] ?? null;
-  }, [resolvedCards, safeSelectedValue]);
+    return resolvedCards[Number.parseInt(safeSelectedCard, 10)] ?? null;
+  }, [resolvedCards, safeSelectedCard]);
 
-  const dimensions = useMemo(() => getCardDimensions(selectedCard?.card ?? null, project?.config ?? null), [selectedCard, project?.config],);
-
-  const widthPx = useMemo(() => toPixelDimension(dimensions.width, dimensions.unit, dimensions.dpi), [dimensions],);
-
-  const heightPx = useMemo(() => toPixelDimension(dimensions.height, dimensions.unit, dimensions.dpi), [dimensions],);
-
-  const iframeContent = selectedCard ? buildSrcDoc(selectedCard.html) : '';
-
-  const hasProject = Boolean(project);
-  const hasCards = resolvedCards.length > 0;
+  const dimensions = useMemo(() => resolveCardDimensions(selectedCard?.card ?? null, project?.config ?? null), [project?.config, selectedCard]);
+  const cardWidthPx = useMemo(() => convertToPixels(dimensions.width, dimensions.unit, dimensions.dpi), [dimensions]);
+  const cardHeightPx = useMemo(() => convertToPixels(dimensions.height, dimensions.unit, dimensions.dpi), [dimensions]);
+  const iframeDocument = selectedCard ? buildPreviewDocument(selectedCard.html) : '';
+  const scaledWidth = cardWidthPx * zoom;
+  const scaledHeight = cardHeightPx * zoom;
+  const translateX = Math.max((viewportSize.width - scaledWidth) / 2, 0);
+  const translateY = Math.max((viewportSize.height - scaledHeight) / 2, 0);
 
   /**
-   * Ensures the zoom level remains within a sensible range.
+   * Restricts zoom levels to a sensible range.
    *
-   * @param value - Proposed zoom value.
-   * @returns Clamped zoom value.
+   * @param value - Proposed zoom level.
+   * @returns Clamped zoom level.
    */
   const clampZoom = useCallback((value: number): number => Math.min(4, Math.max(0.25, value)), []);
 
   /**
-   * Applies a zoom level update and ensures fit-to-viewport mode is disabled for manual adjustments.
+   * Computes the zoom value that would fit the card inside the viewport.
    *
-   * @param nextValue - Target zoom value or updater function.
+   * @returns Zoom level or null when dimensions are unavailable.
    */
-  const applyManualZoom = useCallback((nextValue: number | ((value: number) => number)): void => {
-    setIsFitToViewport(false);
-    setManualZoom(current => {
-      const resolvedValue = typeof nextValue === 'function' ? nextValue(current) : nextValue;
-      const clamped = clampZoom(Number.parseFloat(resolvedValue.toFixed(2)));
-
-      setZoomLevel(clamped);
-
-      return clamped;
-    });
-  }, [clampZoom]);
-
-  /**
-   * Calculates a zoom value that fits the card within the viewport bounds.
-   *
-   * @returns Scaled zoom ratio or null when unavailable.
-   */
-  const calculateFitZoom = useCallback((): number | null => {
+  const computeFitZoom = useCallback((): number | null => {
     const viewport = viewportRef.current;
 
-    if (!viewport || widthPx <= 0 || heightPx <= 0) {
+    if (!viewport || cardWidthPx <= 0 || cardHeightPx <= 0) {
       return null;
     }
 
@@ -303,57 +280,67 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
       return null;
     }
 
-    const scale = Math.min(availableWidth / widthPx, availableHeight / heightPx);
+    const scale = Math.min(availableWidth / cardWidthPx, availableHeight / cardHeightPx);
 
     return clampZoom(Number.parseFloat(scale.toFixed(2)));
-  }, [clampZoom, heightPx, widthPx]);
+  }, [cardHeightPx, cardWidthPx, clampZoom]);
 
   /**
-   * Resets the preview to its original scale.
+   * Applies a manual zoom value and disables fit-to-viewport mode.
+   *
+   * @param next - Target zoom value or updater.
    */
-  const handleOriginalSize = (): void => {
-    applyManualZoom(1);
+  const applyZoom = useCallback((next: number | ((value: number) => number)): void => {
+    setFitToViewport(false);
+    setZoom(current => {
+      const resolved = typeof next === 'function' ? next(current) : next;
+      const clamped = clampZoom(resolved);
+
+      return Number.parseFloat(clamped.toFixed(2));
+    });
+  }, [clampZoom]);
+
+  /**
+   * Toggles fit-to-viewport mode for the preview.
+   */
+  const handleToggleFit = (): void => {
+    if (fitToViewport) {
+      setFitToViewport(false);
+
+      return;
+    }
+
+    const fitZoom = computeFitZoom();
+
+    if (fitZoom !== null) {
+      setZoom(fitZoom);
+      setFitToViewport(true);
+    }
+  };
+
+  /**
+   * Resets the preview zoom back to 100%.
+   */
+  const handleResetZoom = (): void => {
+    applyZoom(1);
   };
 
   /**
    * Increases the preview zoom level.
    */
   const handleZoomIn = (): void => {
-    applyManualZoom(current => current + 0.1);
+    applyZoom(value => value + 0.1);
   };
 
   /**
    * Decreases the preview zoom level.
    */
   const handleZoomOut = (): void => {
-    applyManualZoom(current => current - 0.1);
+    applyZoom(value => value - 0.1);
   };
 
   /**
-   * Calculates and applies a zoom level that fits the card inside the viewport.
-   */
-  const handleZoomToFit = (): void => {
-    const fitZoom = calculateFitZoom();
-
-    if (fitZoom === null) {
-      return;
-    }
-
-    if (isFitToViewport) {
-      setIsFitToViewport(false);
-      setZoomLevel(manualZoom);
-
-      return;
-    }
-
-    setIsFitToViewport(true);
-    setZoomLevel(fitZoom);
-  };
-
-  /**
-   * Starts a pointer-driven panning gesture within the viewport.
-   *
-   * @param event - Pointer down event.
+   * Handles the start of a panning gesture inside the viewport.
    */
   const handlePanStart = (event: React.PointerEvent<HTMLDivElement>): void => {
     if (event.button !== 0) {
@@ -374,33 +361,29 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
       scrollTop: viewport.scrollTop,
       pointerId: event.pointerId,
     };
+    isPanningRef.current = true;
     setIsPanning(true);
   };
 
   /**
-   * Updates viewport scroll while panning.
-   *
-   * @param event - Pointer move event.
+   * Updates the viewport scroll while panning.
    */
   const handlePanMove = (event: React.PointerEvent<HTMLDivElement>): void => {
     const viewport = viewportRef.current;
     const origin = panOriginRef.current;
 
-    if (!viewport || !origin || !isPanning) {
+    if (!viewport || !origin || origin.pointerId !== event.pointerId) {
       return;
     }
 
-    event.preventDefault();
-
     const deltaX = event.clientX - origin.x;
     const deltaY = event.clientY - origin.y;
-
     viewport.scrollLeft = origin.scrollLeft - deltaX;
     viewport.scrollTop = origin.scrollTop - deltaY;
   };
 
   /**
-   * Ends the active panning gesture.
+   * Ends an active panning gesture.
    */
   const handlePanEnd = (): void => {
     const viewport = viewportRef.current;
@@ -411,22 +394,38 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
     }
 
     panOriginRef.current = null;
+    isPanningRef.current = false;
     setIsPanning(false);
   };
 
   /**
-   * Keeps the zoom level synchronized while fit-to-viewport is active.
+   * Measures the viewport and recenters the preview content.
    */
+  const recenterViewport = useCallback((): void => {
+    const viewport = viewportRef.current;
+
+    if (!viewport || isPanningRef.current) {
+      return;
+    }
+
+    const width = viewport.clientWidth;
+    const height = viewport.clientHeight;
+
+    setViewportSize(previous => (previous.width === width && previous.height === height)
+      ? previous
+      : {width, height});
+  }, []);
+
   useEffect(() => {
-    if (!isFitToViewport) {
+    if (!fitToViewport) {
       return undefined;
     }
 
     const applyFitZoom = (): void => {
-      const fitZoom = calculateFitZoom();
+      const fitZoom = computeFitZoom();
 
       if (fitZoom !== null) {
-        setZoomLevel(fitZoom);
+        setZoom(fitZoom);
       }
     };
 
@@ -438,7 +437,10 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
       return undefined;
     }
 
-    const resizeObserver = new ResizeObserver(applyFitZoom);
+    const resizeObserver = new ResizeObserver(() => {
+      applyFitZoom();
+    });
+
     resizeObserver.observe(viewport);
     window.addEventListener('resize', applyFitZoom);
 
@@ -446,36 +448,31 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
       resizeObserver.disconnect();
       window.removeEventListener('resize', applyFitZoom);
     };
-  }, [calculateFitZoom, isFitToViewport]);
+  }, [computeFitZoom, fitToViewport]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
+
+    recenterViewport();
 
     if (!viewport) {
       return undefined;
     }
 
-    const updateViewportSize = (): void => {
-      setViewportSize({
-        width: viewport.clientWidth,
-        height: viewport.clientHeight,
-      });
-    };
-
-    updateViewportSize();
-
-    const resizeObserver = new ResizeObserver(updateViewportSize);
+    const resizeObserver = new ResizeObserver(recenterViewport);
     resizeObserver.observe(viewport);
 
     return () => {
       resizeObserver.disconnect();
     };
-  }, []);
+  }, [recenterViewport]);
 
-  const scaledWidth = widthPx * zoomLevel;
-  const scaledHeight = heightPx * zoomLevel;
-  const translateX = Math.max((viewportSize.width - scaledWidth) / 2, 0);
-  const translateY = Math.max((viewportSize.height - scaledHeight) / 2, 0);
+  useEffect(() => {
+    recenterViewport();
+  }, [cardHeightPx, cardWidthPx, recenterViewport, viewportSize.height, viewportSize.width, zoom]);
+
+  const hasProject = Boolean(project);
+  const hasCards = resolvedCards.length > 0;
 
   return (<section className={`card-preview panel ${collapsed ? 'panel--collapsed' : 'panel--expanded'}`}>
     <div className="panel__header">Card preview</div>
@@ -493,26 +490,21 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
           onPointerCancel={handlePanEnd}
           onPointerLeave={handlePanEnd}
         >
-          <div className="card-preview__viewport-size-guard" style={{width: `${scaledWidth}px`, height: `${scaledHeight}px`}} aria-hidden />
+          <div className="card-preview__canvas" style={{width: `${scaledWidth}px`, height: `${scaledHeight}px`}} aria-hidden />
           <div
-            className="card-preview__viewport-scale"
+            className="card-preview__frame"
             style={{
-              width: `${widthPx - 16}px`,
-              height: `${heightPx - 16}px`,
-              transform: `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`,
+              width: `${cardWidthPx}px`,
+              height: `${cardHeightPx}px`,
+              transform: `translate(${translateX}px, ${translateY}px) scale(${zoom})`,
               transformOrigin: 'top left',
             }}
           >
-            <div
-              className="card-preview__viewport-content"
-              style={{width: `${widthPx}px`, height: `${heightPx}px`}}
-            >
-              <iframe
-                title="Card preview"
-                className="card-preview__iframe"
-                srcDoc={iframeContent}
-              />
-            </div>
+            <iframe
+              title="Card preview"
+              className="card-preview__iframe"
+              srcDoc={iframeDocument}
+            />
           </div>
           <div className="card-preview__dimensions" aria-label="Card dimensions">
             <div className="card-preview__dimensions-row">
@@ -521,15 +513,21 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
             </div>
             <div className="card-preview__dimensions-row">
               <span className="card-preview__dimensions-label">Pixels:</span>
-              <span>{Math.round(widthPx)} × {Math.round(heightPx)} px @ {dimensions.dpi} dpi</span>
+              <span>{Math.round(cardWidthPx)} × {Math.round(cardHeightPx)} px @ {dimensions.dpi} dpi</span>
+            </div>
+            <div className="card-preview__dimensions-row">
+              <span className="card-preview__dimensions-label">Zoom:</span>
+              <span>{Math.round(zoom * 100)}%</span>
             </div>
           </div>
         </div>
+
         <div className="card-preview__toolbar" aria-label="Card preview toolbar">
-          <ToolbarButton icon="view_real_size" label="Original size" onClick={handleOriginalSize}/>
-          <ToolbarButton icon="zoom_out" label="Zoom out" onClick={handleZoomOut}/>
-          <ToolbarButton icon="zoom_in" label="Zoom in" onClick={handleZoomIn}/>
-          <ToolbarButton icon="fit_screen" label="Zoom to fit" onClick={handleZoomToFit} active={isFitToViewport}/>
+          <ToolbarButton icon="view_real_size" label="Original size" onClick={handleResetZoom} />
+          <ToolbarButton icon="zoom_out" label="Zoom out" onClick={handleZoomOut} />
+          <ToolbarButton icon="zoom_in" label="Zoom in" onClick={handleZoomIn} />
+          <ToolbarButton icon="fit_screen" label="Zoom to fit" onClick={handleToggleFit} active={fitToViewport} />
+
           {hasLocalization && (<ToolbarSelect
             placeholder="Language"
             tooltip="Language"
@@ -539,12 +537,13 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
               onChangeLocale?.(value);
             }}
           />)}
+
           <ToolbarSelect
             placeholder="Card"
             tooltip="Card"
             options={cardOptions}
-            value={safeSelectedValue}
-            onChange={setSelectedCardIndex}
+            value={safeSelectedCard}
+            onChange={(value) => setSelectedCardValue(value)}
           />
         </div>
       </>)}
