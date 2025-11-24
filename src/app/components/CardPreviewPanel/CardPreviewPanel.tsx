@@ -282,7 +282,7 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
 
     const scale = Math.min(availableWidth / cardWidthPx, availableHeight / cardHeightPx);
 
-    return clampZoom(Number.parseFloat(scale.toFixed(2)));
+    return clampZoom(Number.parseFloat(scale.toFixed(4)));
   }, [cardHeightPx, cardWidthPx, clampZoom]);
 
   /**
@@ -296,7 +296,7 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
       const resolved = typeof next === 'function' ? next(current) : next;
       const clamped = clampZoom(resolved);
 
-      return Number.parseFloat(clamped.toFixed(2));
+      return Number.parseFloat(clamped.toFixed(4));
     });
   }, [clampZoom]);
 
@@ -329,14 +329,14 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
    * Increases the preview zoom level.
    */
   const handleZoomIn = (): void => {
-    applyZoom(value => value + 0.1);
+    applyZoom(value => value + 0.05);
   };
 
   /**
    * Decreases the preview zoom level.
    */
   const handleZoomOut = (): void => {
-    applyZoom(value => value - 0.1);
+    applyZoom(value => value - 0.05);
   };
 
   /**
