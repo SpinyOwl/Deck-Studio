@@ -64,6 +64,7 @@
     gap: 4px;
     align-items: center;
     padding-top: 4px;
+    padding-bottom: 4px;
     margin-top: auto;
     border-top: 1px solid var(--color-border);
     overflow-x: scroll;
@@ -73,7 +74,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 4px;
+    height: 32px;
+    min-width: 32px;
+    padding: 4px 6px;
     border: 1px solid transparent;
     flex-grow: 0;
     flex-shrink: 0;
@@ -88,6 +91,11 @@
     background: var(--color-surface-raised);
     border-color: var(--color-border);
     color: var(--color-text-contrast);
+}
+
+.card-preview__icon-button .material-symbols-outlined {
+    font-size: 18px;
+    line-height: 1;
 }
 
 .card-preview__icon-button:hover {
@@ -114,7 +122,8 @@
 
 .card-preview__select {
     min-width: 100px;
-    padding: 8px 10px;
+    height: 32px;
+    padding: 4px 10px;
     border: 1px solid transparent;
     border-radius: 4px;
     background: var(--color-surface);
@@ -122,6 +131,10 @@
     font-size: 0.95rem;
     flex-grow: 1;
     flex-shrink: 1;
+}
+
+.card-preview__select[aria-label="Language"] {
+    min-width: 80px;
 }
 
 .card-preview__select:focus-visible {
