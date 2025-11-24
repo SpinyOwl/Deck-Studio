@@ -1,6 +1,6 @@
 // src/components/MonacoEditorPane/MonacoEditorPane.tsx
 import React from 'react';
-import Editor, { OnMount } from '@monaco-editor/react';
+import Editor, { type OnMount } from '@monaco-editor/react';
 import type * as monaco from 'monaco-editor';
 import './MonacoEditorPane.css';
 

@@ -1,5 +1,5 @@
 // src/components/CardPreviewPanel/CardPreviewPanel.tsx
-import React, {useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   type CardRecord, defaultLayoutConfig, type DimensionUnit, type Project, type ProjectConfig, toPixels,
 } from '../../types/project';
@@ -15,6 +15,8 @@ interface Props {
 interface ToolbarButtonProps {
   readonly icon: string;
   readonly label: string;
+  readonly onClick?: () => void;
+  readonly active?: boolean;
 }
 
 interface ToolbarSelectProps {
@@ -44,11 +46,13 @@ interface CardDimensions {
  * @param props - Icon glyph and label configuration for the button.
  * @returns Toolbar button element.
  */
-const ToolbarButton: React.FC<ToolbarButtonProps> = ({icon, label}) => (<button
+const ToolbarButton: React.FC<ToolbarButtonProps> = ({icon, label, onClick, active = false}) => (<button
   type="button"
-  className="card-preview__icon-button"
+  className={`card-preview__icon-button${active ? ' card-preview__icon-button--active' : ''}`}
   aria-label={label}
+  aria-pressed={active}
   title={label}
+  onClick={onClick}
 >
   <span aria-hidden className="material-symbols-outlined">{icon}</span>
 </button>);
@@ -201,6 +205,19 @@ function getCardLabel(card: CardRecord, index: number, config: ProjectConfig | n
 export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeLocale}) => {
   const resolvedCards = useMemo(() => project?.resolvedCards ?? [], [project]);
   const [selectedCardIndex, setSelectedCardIndex] = useState('0');
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [manualZoom, setManualZoom] = useState(1);
+  const [isFitToViewport, setIsFitToViewport] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const [viewportSize, setViewportSize] = useState<{ width: number; height: number }>({width: 0, height: 0});
+  const viewportRef = useRef<HTMLDivElement | null>(null);
+  const panOriginRef = useRef<{
+    readonly x: number;
+    readonly y: number;
+    readonly scrollLeft: number;
+    readonly scrollTop: number;
+    readonly pointerId: number;
+  } | null>(null);
   const localeOptions = useMemo(() => {
     const locales = project?.localization?.availableLocales ?? [];
 
@@ -242,20 +259,260 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
   const hasProject = Boolean(project);
   const hasCards = resolvedCards.length > 0;
 
+  /**
+   * Ensures the zoom level remains within a sensible range.
+   *
+   * @param value - Proposed zoom value.
+   * @returns Clamped zoom value.
+   */
+  const clampZoom = useCallback((value: number): number => Math.min(4, Math.max(0.25, value)), []);
+
+  /**
+   * Applies a zoom level update and ensures fit-to-viewport mode is disabled for manual adjustments.
+   *
+   * @param nextValue - Target zoom value or updater function.
+   */
+  const applyManualZoom = useCallback((nextValue: number | ((value: number) => number)): void => {
+    setIsFitToViewport(false);
+    setManualZoom(current => {
+      const resolvedValue = typeof nextValue === 'function' ? nextValue(current) : nextValue;
+      const clamped = clampZoom(Number.parseFloat(resolvedValue.toFixed(2)));
+
+      setZoomLevel(clamped);
+
+      return clamped;
+    });
+  }, [clampZoom]);
+
+  /**
+   * Calculates a zoom value that fits the card within the viewport bounds.
+   *
+   * @returns Scaled zoom ratio or null when unavailable.
+   */
+  const calculateFitZoom = useCallback((): number | null => {
+    const viewport = viewportRef.current;
+
+    if (!viewport || widthPx <= 0 || heightPx <= 0) {
+      return null;
+    }
+
+    const availableWidth = viewport.clientWidth;
+    const availableHeight = viewport.clientHeight;
+
+    if (availableWidth === 0 || availableHeight === 0) {
+      return null;
+    }
+
+    const scale = Math.min(availableWidth / widthPx, availableHeight / heightPx);
+
+    return clampZoom(Number.parseFloat(scale.toFixed(2)));
+  }, [clampZoom, heightPx, widthPx]);
+
+  /**
+   * Resets the preview to its original scale.
+   */
+  const handleOriginalSize = (): void => {
+    applyManualZoom(1);
+  };
+
+  /**
+   * Increases the preview zoom level.
+   */
+  const handleZoomIn = (): void => {
+    applyManualZoom(current => current + 0.1);
+  };
+
+  /**
+   * Decreases the preview zoom level.
+   */
+  const handleZoomOut = (): void => {
+    applyManualZoom(current => current - 0.1);
+  };
+
+  /**
+   * Calculates and applies a zoom level that fits the card inside the viewport.
+   */
+  const handleZoomToFit = (): void => {
+    const fitZoom = calculateFitZoom();
+
+    if (fitZoom === null) {
+      return;
+    }
+
+    if (isFitToViewport) {
+      setIsFitToViewport(false);
+      setZoomLevel(manualZoom);
+
+      return;
+    }
+
+    setIsFitToViewport(true);
+    setZoomLevel(fitZoom);
+  };
+
+  /**
+   * Starts a pointer-driven panning gesture within the viewport.
+   *
+   * @param event - Pointer down event.
+   */
+  const handlePanStart = (event: React.PointerEvent<HTMLDivElement>): void => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const viewport = viewportRef.current;
+
+    if (!viewport) {
+      return;
+    }
+
+    viewport.setPointerCapture(event.pointerId);
+    panOriginRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      scrollLeft: viewport.scrollLeft,
+      scrollTop: viewport.scrollTop,
+      pointerId: event.pointerId,
+    };
+    setIsPanning(true);
+  };
+
+  /**
+   * Updates viewport scroll while panning.
+   *
+   * @param event - Pointer move event.
+   */
+  const handlePanMove = (event: React.PointerEvent<HTMLDivElement>): void => {
+    const viewport = viewportRef.current;
+    const origin = panOriginRef.current;
+
+    if (!viewport || !origin || !isPanning) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const deltaX = event.clientX - origin.x;
+    const deltaY = event.clientY - origin.y;
+
+    viewport.scrollLeft = origin.scrollLeft - deltaX;
+    viewport.scrollTop = origin.scrollTop - deltaY;
+  };
+
+  /**
+   * Ends the active panning gesture.
+   */
+  const handlePanEnd = (): void => {
+    const viewport = viewportRef.current;
+    const origin = panOriginRef.current;
+
+    if (viewport && origin && viewport.hasPointerCapture(origin.pointerId)) {
+      viewport.releasePointerCapture(origin.pointerId);
+    }
+
+    panOriginRef.current = null;
+    setIsPanning(false);
+  };
+
+  /**
+   * Keeps the zoom level synchronized while fit-to-viewport is active.
+   */
+  useEffect(() => {
+    if (!isFitToViewport) {
+      return undefined;
+    }
+
+    const applyFitZoom = (): void => {
+      const fitZoom = calculateFitZoom();
+
+      if (fitZoom !== null) {
+        setZoomLevel(fitZoom);
+      }
+    };
+
+    applyFitZoom();
+
+    const viewport = viewportRef.current;
+
+    if (!viewport) {
+      return undefined;
+    }
+
+    const resizeObserver = new ResizeObserver(applyFitZoom);
+    resizeObserver.observe(viewport);
+    window.addEventListener('resize', applyFitZoom);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', applyFitZoom);
+    };
+  }, [calculateFitZoom, isFitToViewport]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+
+    if (!viewport) {
+      return undefined;
+    }
+
+    const updateViewportSize = (): void => {
+      setViewportSize({
+        width: viewport.clientWidth,
+        height: viewport.clientHeight,
+      });
+    };
+
+    updateViewportSize();
+
+    const resizeObserver = new ResizeObserver(updateViewportSize);
+    resizeObserver.observe(viewport);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
+
+  const scaledWidth = widthPx * zoomLevel;
+  const scaledHeight = heightPx * zoomLevel;
+  const translateX = Math.max((viewportSize.width - scaledWidth) / 2, 0);
+  const translateY = Math.max((viewportSize.height - scaledHeight) / 2, 0);
+
   return (<section className={`card-preview panel ${collapsed ? 'panel--collapsed' : 'panel--expanded'}`}>
     <div className="panel__header">Card preview</div>
     <div className="panel__body">
       {!hasProject && (<div className="placeholder-text">Open a project to see a live card preview.</div>)}
       {hasProject && !hasCards && (<div className="placeholder-text">No cards found in the loaded project.</div>)}
       {hasProject && hasCards && selectedCard && (<>
-        <div className="card-preview__viewport" aria-label="Card preview area">
-          <div className="card-preview__viewport-wrapper">
-            <iframe
-              title="Card preview"
-              className="card-preview__iframe"
-              srcDoc={iframeContent}
+        <div
+          className={`card-preview__viewport${isPanning ? ' card-preview__viewport--panning' : ''}`}
+          aria-label="Card preview area"
+          ref={viewportRef}
+          onPointerDown={handlePanStart}
+          onPointerMove={handlePanMove}
+          onPointerUp={handlePanEnd}
+          onPointerCancel={handlePanEnd}
+          onPointerLeave={handlePanEnd}
+        >
+          <div className="card-preview__viewport-size-guard" style={{width: `${scaledWidth}px`, height: `${scaledHeight}px`}} aria-hidden />
+          <div
+            className="card-preview__viewport-scale"
+            style={{
+              width: `${widthPx - 16}px`,
+              height: `${heightPx - 16}px`,
+              transform: `translate(${translateX}px, ${translateY}px) scale(${zoomLevel})`,
+              transformOrigin: 'top left',
+            }}
+          >
+            <div
+              className="card-preview__viewport-content"
               style={{width: `${widthPx}px`, height: `${heightPx}px`}}
-            />
+            >
+              <iframe
+                title="Card preview"
+                className="card-preview__iframe"
+                srcDoc={iframeContent}
+              />
+            </div>
           </div>
           <div className="card-preview__dimensions" aria-label="Card dimensions">
             <div className="card-preview__dimensions-row">
@@ -269,10 +526,10 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
           </div>
         </div>
         <div className="card-preview__toolbar" aria-label="Card preview toolbar">
-          <ToolbarButton icon="view_real_size" label="Original size"/>
-          <ToolbarButton icon="zoom_out" label="Zoom out"/>
-          <ToolbarButton icon="zoom_in" label="Zoom in"/>
-          <ToolbarButton icon="fit_screen" label="Zoom to fit"/>
+          <ToolbarButton icon="view_real_size" label="Original size" onClick={handleOriginalSize}/>
+          <ToolbarButton icon="zoom_out" label="Zoom out" onClick={handleZoomOut}/>
+          <ToolbarButton icon="zoom_in" label="Zoom in" onClick={handleZoomIn}/>
+          <ToolbarButton icon="fit_screen" label="Zoom to fit" onClick={handleZoomToFit} active={isFitToViewport}/>
           {hasLocalization && (<ToolbarSelect
             placeholder="Language"
             tooltip="Language"
