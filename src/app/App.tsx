@@ -68,6 +68,40 @@ function getImageMimeType(path: string): string {
   return 'application/octet-stream';
 }
 
+/**
+ * Identifies the separator used by a path.
+ *
+ * @param path - Path to inspect.
+ * @returns The detected separator, defaulting to '/'.
+ */
+function getPathSeparator(path: string): string {
+  return path.includes('\\') ? '\\' : '/';
+}
+
+/**
+ * Joins a base path with a child name using the separator present in the base.
+ *
+ * @param basePath - Absolute base directory path.
+ * @param childName - File or folder name to append.
+ * @returns Combined absolute path to the child entry.
+ */
+function joinPathSegments(basePath: string, childName: string): string {
+  const separator = getPathSeparator(basePath);
+  const normalizedBase = basePath.endsWith(separator) ? basePath : `${basePath}${separator}`;
+
+  return `${normalizedBase}${childName}`;
+}
+
+/**
+ * Checks whether the provided name includes path separators.
+ *
+ * @param name - File system entry name to validate.
+ * @returns True when a forward or backslash is present.
+ */
+function containsPathSeparator(name: string): boolean {
+  return /[\\/]/.test(name);
+}
+
 function App() {
   const [project, setProject] = useState<Project | null>(null);
 
@@ -483,6 +517,56 @@ function App() {
   }
 
   /**
+   * Creates a new file or folder within the selected directory and reloads the project tree.
+   *
+   * @param directoryPath - Absolute path to the target directory.
+   * @param name - Name of the entry to create.
+   * @param entryType - Type of entry to create.
+   */
+  async function handleCreateTreeEntry(
+    directoryPath: string,
+    name: string,
+    entryType: 'file' | 'folder',
+  ): Promise<void> {
+    const trimmedName = name.trim();
+    if (!project) {
+      logService.add('Open a project before creating files or folders.', 'warning');
+      return;
+    }
+
+    if (!trimmedName) {
+      logService.add('Name cannot be empty.', 'warning');
+      return;
+    }
+
+    if (containsPathSeparator(trimmedName)) {
+      logService.add('Names cannot contain path separators.', 'warning');
+      return;
+    }
+
+    const targetPath = joinPathSegments(directoryPath, trimmedName);
+
+    try {
+      if (entryType === 'file') {
+        await fileService.createFile(targetPath);
+        logService.add(`Created file ${trimmedName}.`);
+      } else {
+        await fileService.createDirectory(targetPath);
+        logService.add(`Created folder ${trimmedName}.`);
+      }
+
+      const refreshed = await projectService.reloadProject(project.rootPath);
+      if (refreshed) {
+        setProject(refreshed);
+      }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      const entryLabel = entryType === 'file' ? 'file' : 'folder';
+      logService.add(`Failed to create ${entryLabel} ${trimmedName}: ${reason}`, 'error');
+    }
+  }
+
+  /**
    * Persists the active file to disk and clears its dirty state.
    */
   async function handleSave() {
@@ -595,6 +679,10 @@ function App() {
   const activeFile = openFiles.find(file => file.path === activeFilePath) ?? null;
   const projectPath = project?.rootPath ?? null;
   const projectTree = project?.tree ?? [];
+  const createFileAt = (directoryPath: string, fileName: string) =>
+    handleCreateTreeEntry(directoryPath, fileName, 'file');
+  const createFolderAt = (directoryPath: string, folderName: string) =>
+    handleCreateTreeEntry(directoryPath, folderName, 'folder');
 
   return (
     <div
@@ -700,6 +788,9 @@ function App() {
         selectedPath={activeFile?.path}
         onSelectFile={handleSelectFile}
         collapsed={isProjectTreeCollapsed}
+        projectRoot={projectPath ?? undefined}
+        onCreateFile={createFileAt}
+        onCreateFolder={createFolderAt}
       />
 
       <div

@@ -235,6 +235,54 @@ async function buildDataUrl(absolutePath) {
 }
 
 /**
+ * Creates a new file with the provided content, ensuring parent directories exist and the
+ * destination does not already contain a file.
+ *
+ * @param {string} filePath - Absolute path to create.
+ * @param {string} content - Initial content for the new file.
+ * @returns {Promise<boolean>} Indicates whether the file was created.
+ */
+async function createFile(filePath, content = '') {
+    const normalizedPath = typeof filePath === 'string' ? filePath.trim() : '';
+    if (!normalizedPath) {
+        throw new Error('File path is required to create a new file.');
+    }
+
+    const directoryPath = path.dirname(normalizedPath);
+    await fsPromises.mkdir(directoryPath, { recursive: true });
+
+    try {
+        await fsPromises.access(normalizedPath, fs.constants.F_OK);
+        throw new Error('A file already exists at the requested path.');
+    } catch (error) {
+        if (error && error.code !== 'ENOENT') {
+            throw error;
+        }
+    }
+
+    await fsPromises.writeFile(normalizedPath, content ?? '', 'utf8');
+
+    return true;
+}
+
+/**
+ * Creates a directory at the provided absolute path, failing when the directory already exists.
+ *
+ * @param {string} directoryPath - Absolute directory path to create.
+ * @returns {Promise<boolean>} Indicates whether the directory was created.
+ */
+async function createDirectory(directoryPath) {
+    const normalizedPath = typeof directoryPath === 'string' ? directoryPath.trim() : '';
+    if (!normalizedPath) {
+        throw new Error('Directory path is required to create a new folder.');
+    }
+
+    await fsPromises.mkdir(normalizedPath, { recursive: false });
+
+    return true;
+}
+
+/**
  * Loads persisted layout configuration from disk, falling back to defaults when missing.
  *
  * @returns {Promise<typeof DEFAULT_LAYOUT_STATE>} Layout state retrieved from disk or defaults.
@@ -513,6 +561,14 @@ ipcMain.handle('read-binary-file', async (_event, filePath) => {
 ipcMain.handle('write-file', async (_event, filePath, content) => {
     await fsPromises.writeFile(filePath, content, 'utf8');
     return true;
+});
+
+ipcMain.handle('create-file', async (_event, filePath, content) => {
+    return createFile(filePath, content);
+});
+
+ipcMain.handle('create-directory', async (_event, directoryPath) => {
+    return createDirectory(directoryPath);
 });
 
 ipcMain.handle('load-settings', async () => {

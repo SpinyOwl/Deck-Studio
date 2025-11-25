@@ -7,6 +7,7 @@ interface Props {
   nodes: FileNode[];
   selectedPath?: string;
   onSelectFile: (node: FileNode) => void;
+  onContextMenu?: (event: React.MouseEvent<HTMLDivElement>, node?: FileNode) => void;
 }
 
 const INDENT_PER_LEVEL = 14;
@@ -61,7 +62,7 @@ function collectDirectoryPaths(nodes: FileNode[]): Set<string> {
  * @param props - File tree configuration and callbacks.
  * @returns Rendered file tree component.
  */
-export const FileTree: React.FC<Props> = ({ nodes, selectedPath, onSelectFile }) => {
+export const FileTree: React.FC<Props> = ({ nodes, selectedPath, onSelectFile, onContextMenu }) => {
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -80,6 +81,12 @@ export const FileTree: React.FC<Props> = ({ nodes, selectedPath, onSelectFile })
     });
   };
 
+  const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>, nodeContext: FileNode): void => {
+    event.preventDefault();
+    event.stopPropagation();
+    onContextMenu?.(event, nodeContext);
+  };
+
   const renderNode = (node: FileNode, depth = 0): React.ReactNode => {
     const paddingLeft = depth * INDENT_PER_LEVEL;
 
@@ -91,6 +98,7 @@ export const FileTree: React.FC<Props> = ({ nodes, selectedPath, onSelectFile })
             className="file-tree__row file-tree__row--dir"
             style={{ paddingLeft }}
             onClick={() => toggleDirectory(node.path)}
+            onContextMenu={(event) => handleContextMenu(event, node)}
             aria-expanded={isExpanded}
             role="button"
           >
@@ -112,6 +120,7 @@ export const FileTree: React.FC<Props> = ({ nodes, selectedPath, onSelectFile })
         className={`file-tree__row file-tree__row--file ${isSelected ? 'is-selected' : ''}`}
         style={{ paddingLeft: paddingLeft + FILE_ICON_OFFSET }}
         onClick={() => onSelectFile(node)}
+        onContextMenu={(event) => handleContextMenu(event, node)}
         role="button"
       >
         {renderIcon('description', 'file-tree__icon--file')}
@@ -119,6 +128,17 @@ export const FileTree: React.FC<Props> = ({ nodes, selectedPath, onSelectFile })
       </div>
     );
   };
-
-  return <div className="file-tree">{nodes.map(node => renderNode(node))}</div>;
+  return (
+    <div
+      className="file-tree"
+      onContextMenu={(event) => {
+        if (event.target === event.currentTarget) {
+          event.preventDefault();
+          onContextMenu?.(event);
+        }
+      }}
+    >
+      {nodes.map(node => renderNode(node))}
+    </div>
+  );
 };

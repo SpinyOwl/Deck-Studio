@@ -52,13 +52,26 @@ export class FileService {
   }
 
   /**
-   * Creates a new file or replaces an existing file with the provided content.
+   * Creates a new file with the provided content.
    *
    * @param path - Absolute file system path to create.
    * @param content - Content to write into the new file. Defaults to an empty string.
    */
   public async createFile(path: string, content = ''): Promise<void> {
-    await this.saveTextFile(path, content);
+    this.validatePath(path);
+
+    await window.api.createFile(path, content);
+  }
+
+  /**
+   * Creates a directory at the specified path.
+   *
+   * @param path - Absolute directory path to create.
+   */
+  public async createDirectory(path: string): Promise<void> {
+    this.validatePath(path);
+
+    await window.api.createDirectory(path);
   }
 }
 

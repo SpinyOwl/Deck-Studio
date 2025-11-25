@@ -6,3 +6,120 @@
 .project-tree .panel__body {
     overflow: auto;
 }
+
+.project-tree__context-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+}
+
+.project-tree__context-menu {
+    position: fixed;
+    z-index: 21;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 200px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.project-tree__context-header {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+    padding: 4px 6px;
+}
+
+.project-tree__context-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: inherit;
+    padding: 6px 8px;
+    border-radius: 6px;
+}
+
+.project-tree__context-item:hover,
+.project-tree__context-item:focus-visible {
+    background: var(--color-surface-hover);
+}
+
+.project-tree__context-item .material-symbols-outlined {
+    font-size: 18px;
+    color: var(--color-tree-icon);
+}
+
+.project-tree__prompt {
+    position: fixed;
+    inset: 0;
+    z-index: 22;
+    display: grid;
+    place-items: center;
+    background: rgba(0, 0, 0, 0.4);
+    padding: 24px;
+}
+
+.project-tree__prompt-card {
+    background: var(--color-surface);
+    border-radius: 12px;
+    border: 1px solid var(--color-border-subtle);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+    width: min(420px, 100%);
+}
+
+.project-tree__prompt-header {
+    padding: 16px 20px 8px;
+}
+
+.project-tree__prompt-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.project-tree__prompt-subtitle {
+    margin: 4px 0 0;
+    color: var(--color-text-muted);
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.project-tree__prompt-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 20px 20px;
+}
+
+.project-tree__prompt-label {
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.project-tree__prompt-input {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--color-border-subtle);
+    background: var(--color-surface-raised);
+    color: inherit;
+}
+
+.project-tree__prompt-input:focus-visible {
+    outline: 2px solid var(--color-accent);
+    border-color: var(--color-accent);
+}
+
+.project-tree__prompt-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
