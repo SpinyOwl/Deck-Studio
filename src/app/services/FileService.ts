@@ -73,6 +73,19 @@ export class FileService {
 
     await window.api.createDirectory(path);
   }
+
+  /**
+   * Renames a file or folder by moving it to a new absolute path.
+   *
+   * @param currentPath - Existing absolute path of the entry to rename.
+   * @param nextPath - Destination absolute path including the new name.
+   */
+  public async renamePath(currentPath: string, nextPath: string): Promise<void> {
+    this.validatePath(currentPath);
+    this.validatePath(nextPath);
+
+    await window.api.renamePath(currentPath, nextPath);
+  }
 }
 
 export const fileService = new FileService();

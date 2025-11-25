@@ -93,6 +93,27 @@ function joinPathSegments(basePath: string, childName: string): string {
 }
 
 /**
+ * Resolves the parent directory of a provided path string.
+ *
+ * @param targetPath - Absolute path to resolve.
+ * @returns Parent directory path or null when it cannot be determined.
+ */
+function getParentPath(targetPath: string): string | null {
+  const separator = getPathSeparator(targetPath);
+  const normalizedPath = targetPath.endsWith(separator) ? targetPath.slice(0, -1) : targetPath;
+  const segments = normalizedPath.split(separator);
+
+  if (segments.length <= 1) {
+    return null;
+  }
+
+  segments.pop();
+  const parent = segments.join(separator);
+
+  return parent || null;
+}
+
+/**
  * Checks whether the provided name includes path separators.
  *
  * @param name - File system entry name to validate.
@@ -567,6 +588,66 @@ function App() {
   }
 
   /**
+   * Renames a file or folder and synchronizes open tabs and project tree state.
+   *
+   * @param currentPath - Existing absolute path of the entry.
+   * @param nextName - New name to apply within the same parent directory.
+   */
+  async function handleRenameEntry(currentPath: string, nextName: string): Promise<void> {
+    const trimmedName = nextName.trim();
+    if (!project) {
+      logService.add('Open a project before renaming files or folders.', 'warning');
+      return;
+    }
+
+    if (!trimmedName) {
+      logService.add('Name cannot be empty.', 'warning');
+      return;
+    }
+
+    if (containsPathSeparator(trimmedName)) {
+      logService.add('Names cannot contain path separators.', 'warning');
+      return;
+    }
+
+    const parentPath = getParentPath(currentPath);
+    if (!parentPath) {
+      logService.add('Unable to determine the parent directory for this entry.', 'error');
+      return;
+    }
+
+    const currentName = currentPath.split(getPathSeparator(currentPath)).pop() ?? 'entry';
+    const nextPath = joinPathSegments(parentPath, trimmedName);
+
+    if (nextPath === currentPath) {
+      logService.add('The new name matches the current name.', 'warning');
+      return;
+    }
+
+    try {
+      await fileService.renamePath(currentPath, nextPath);
+      setOpenFiles(prev =>
+        prev.map(file =>
+          file.path === currentPath
+            ? { ...file, path: nextPath, name: trimmedName }
+            : file,
+        ),
+      );
+      setActiveFilePath(prev => (prev === currentPath ? nextPath : prev));
+
+      const refreshed = await projectService.reloadProject(project.rootPath);
+      if (refreshed) {
+        setProject(refreshed);
+      }
+
+      logService.add(`Renamed ${currentName} to ${trimmedName}.`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      logService.add(`Failed to rename ${currentName}: ${reason}`, 'error');
+    }
+  }
+
+  /**
    * Persists the active file to disk and clears its dirty state.
    */
   async function handleSave() {
@@ -683,6 +764,8 @@ function App() {
     handleCreateTreeEntry(directoryPath, fileName, 'file');
   const createFolderAt = (directoryPath: string, folderName: string) =>
     handleCreateTreeEntry(directoryPath, folderName, 'folder');
+  const renameEntry = (currentPath: string, nextName: string) =>
+    handleRenameEntry(currentPath, nextName);
 
   return (
     <div
@@ -791,6 +874,7 @@ function App() {
         projectRoot={projectPath ?? undefined}
         onCreateFile={createFileAt}
         onCreateFolder={createFolderAt}
+        onRenameEntry={renameEntry}
       />
 
       <div

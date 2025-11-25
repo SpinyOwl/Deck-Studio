@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('api', {
     readBinaryFile: (filePath) => ipcRenderer.invoke('read-binary-file', filePath),
     createFile: (filePath, content) => ipcRenderer.invoke('create-file', filePath, content),
     createDirectory: (directoryPath) => ipcRenderer.invoke('create-directory', directoryPath),
+    renamePath: (currentPath, nextPath) => ipcRenderer.invoke('rename-path', currentPath, nextPath),
     writeFile: (filePath, content) => ipcRenderer.invoke('write-file', filePath, content),
     loadSettings: () => ipcRenderer.invoke('load-settings'),
     saveSettings: (content) => ipcRenderer.invoke('save-settings', content),

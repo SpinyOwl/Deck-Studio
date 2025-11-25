@@ -283,6 +283,40 @@ async function createDirectory(directoryPath) {
 }
 
 /**
+ * Renames a file or folder by moving it to a new absolute path.
+ *
+ * @param {string} currentPath - Original absolute path of the entry to rename.
+ * @param {string} nextPath - Destination absolute path including the new name.
+ * @returns {Promise<boolean>} Indicates whether the entry was renamed.
+ */
+async function renamePath(currentPath, nextPath) {
+    const sanitizedCurrent = typeof currentPath === 'string' ? currentPath.trim() : '';
+    const sanitizedNext = typeof nextPath === 'string' ? nextPath.trim() : '';
+
+    if (!sanitizedCurrent || !sanitizedNext) {
+        throw new Error('Both current and new paths are required to rename an entry.');
+    }
+
+    if (sanitizedCurrent === sanitizedNext) {
+        return true;
+    }
+
+    try {
+        await fsPromises.access(sanitizedNext, fs.constants.F_OK);
+        throw new Error('A file or folder already exists with the requested name.');
+    } catch (error) {
+        if (error && error.code !== 'ENOENT') {
+            throw error;
+        }
+    }
+
+    await fsPromises.mkdir(path.dirname(sanitizedNext), { recursive: true });
+    await fsPromises.rename(sanitizedCurrent, sanitizedNext);
+
+    return true;
+}
+
+/**
  * Loads persisted layout configuration from disk, falling back to defaults when missing.
  *
  * @returns {Promise<typeof DEFAULT_LAYOUT_STATE>} Layout state retrieved from disk or defaults.
@@ -569,6 +603,10 @@ ipcMain.handle('create-file', async (_event, filePath, content) => {
 
 ipcMain.handle('create-directory', async (_event, directoryPath) => {
     return createDirectory(directoryPath);
+});
+
+ipcMain.handle('rename-path', async (_event, currentPath, nextPath) => {
+    return renamePath(currentPath, nextPath);
 });
 
 ipcMain.handle('load-settings', async () => {

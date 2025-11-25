@@ -11,6 +11,7 @@ interface Props {
   readonly projectRoot?: string;
   readonly onCreateFile: (directoryPath: string, fileName: string) => Promise<void>;
   readonly onCreateFolder: (directoryPath: string, folderName: string) => Promise<void>;
+  readonly onRenameEntry: (currentPath: string, nextName: string) => Promise<void>;
 }
 
 type ContextMenuState = {
@@ -18,11 +19,16 @@ type ContextMenuState = {
   readonly y: number;
   readonly directoryPath: string;
   readonly targetLabel: string;
+  readonly targetPath?: string;
+  readonly targetType?: FileNode['type'];
+  readonly targetName?: string;
 };
 
 type NamePromptState = {
   readonly directoryPath: string;
   readonly kind: 'file' | 'folder';
+  readonly mode: 'create' | 'rename';
+  readonly targetPath?: string;
 };
 
 /**
@@ -36,6 +42,7 @@ export const ProjectTreePanel: React.FC<Props> = ({
   projectRoot,
   onCreateFile,
   onCreateFolder,
+  onRenameEntry,
 }) => {
   const hasTree = tree.length > 0;
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
@@ -117,6 +124,9 @@ export const ProjectTreePanel: React.FC<Props> = ({
       y: event.clientY,
       directoryPath,
       targetLabel: directoryLabel ?? 'project root',
+      targetPath: node?.path,
+      targetType: node?.type,
+      targetName: node?.name,
     });
   };
 
@@ -132,6 +142,23 @@ export const ProjectTreePanel: React.FC<Props> = ({
     setNamePrompt({
       directoryPath: contextMenu.directoryPath,
       kind,
+      mode: 'create',
+    });
+    setContextMenu(null);
+  };
+
+  const showRenamePrompt = () => {
+    if (!contextMenu?.targetPath || !contextMenu.targetName || !contextMenu.targetType) return;
+
+    const parentDirectory = getParentDirectory(contextMenu.targetPath);
+    if (!parentDirectory) return;
+
+    setNameInput(contextMenu.targetName);
+    setNamePrompt({
+      directoryPath: parentDirectory,
+      kind: contextMenu.targetType === 'dir' ? 'folder' : 'file',
+      mode: 'rename',
+      targetPath: contextMenu.targetPath,
     });
     setContextMenu(null);
   };
@@ -168,7 +195,9 @@ export const ProjectTreePanel: React.FC<Props> = ({
     }
 
     try {
-      if (namePrompt.kind === 'file') {
+      if (namePrompt.mode === 'rename' && namePrompt.targetPath) {
+        await onRenameEntry(namePrompt.targetPath, sanitized);
+      } else if (namePrompt.kind === 'file') {
         await onCreateFile(namePrompt.directoryPath, sanitized);
       } else {
         await onCreateFolder(namePrompt.directoryPath, sanitized);
@@ -210,15 +239,28 @@ export const ProjectTreePanel: React.FC<Props> = ({
               <span aria-hidden className="material-symbols-outlined">create_new_folder</span>
               <span>New Folder</span>
             </button>
+            {contextMenu.targetPath && (
+              <>
+                <div className="project-tree__context-header">Rename {contextMenu.targetName}</div>
+                <button type="button" className="project-tree__context-item" onClick={showRenamePrompt}>
+                  <span aria-hidden className="material-symbols-outlined">drive_file_rename_outline</span>
+                  <span>Rename</span>
+                </button>
+              </>
+            )}
           </div>
         </>
       )}
       {namePrompt && (
         <div className="project-tree__prompt" role="dialog" aria-modal="true" aria-labelledby="project-tree__prompt-title">
-          <div className="project-tree__prompt-card">
+            <div className="project-tree__prompt-card">
             <div className="project-tree__prompt-header">
               <h3 id="project-tree__prompt-title">
-                {namePrompt.kind === 'file' ? 'New File' : 'New Folder'}
+                {namePrompt.mode === 'rename'
+                  ? `Rename ${namePrompt.kind === 'file' ? 'File' : 'Folder'}`
+                  : namePrompt.kind === 'file'
+                    ? 'New File'
+                    : 'New Folder'}
               </h3>
               <p className="project-tree__prompt-subtitle">{namePrompt.directoryPath}</p>
             </div>
@@ -239,7 +281,7 @@ export const ProjectTreePanel: React.FC<Props> = ({
                   Cancel
                 </button>
                 <button type="submit" className="button">
-                  Create
+                  {namePrompt.mode === 'rename' ? 'Rename' : 'Create'}
                 </button>
               </div>
             </form>
