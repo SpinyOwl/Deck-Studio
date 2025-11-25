@@ -2,6 +2,7 @@
 import {
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -15,8 +16,10 @@ import {logService} from './services/LogService';
 import {fileService} from './services/FileService';
 import {projectService} from './services/ProjectService';
 import {layoutService} from './services/LayoutService';
+import {yamlParsingService} from './services/YamlParsingService';
 import {type FileNode} from './types/files';
 import {type Project} from './types/project';
+import {type AppSettings, type AutosaveSettingsConfig} from './types/settings';
 import {
   containsPathSeparator,
   getParentPath,
@@ -43,6 +46,63 @@ type OpenFile = {
   isDirty: boolean;
   fileType: FileType;
 };
+
+type AutosaveSettings = {
+  enabled: boolean;
+  intervalSeconds: number;
+};
+
+const DEFAULT_AUTOSAVE_SETTINGS: AutosaveSettings = {
+  enabled: false,
+  intervalSeconds: 30,
+};
+
+const MIN_AUTOSAVE_INTERVAL_SECONDS = 5;
+
+/**
+ * Normalizes autosave configuration values, applying defaults for missing values.
+ *
+ * @param config - Raw autosave configuration from settings YAML.
+ * @returns Normalized autosave settings with safe defaults.
+ */
+function normalizeAutosaveSettings(config: unknown): AutosaveSettings {
+  if (typeof config === 'boolean') {
+    return {...DEFAULT_AUTOSAVE_SETTINGS, enabled: config};
+  }
+
+  if (config && typeof config === 'object') {
+    const autosaveConfig = config as AutosaveSettingsConfig;
+    const interval = Number.isFinite(autosaveConfig.intervalSeconds)
+      ? Math.max(MIN_AUTOSAVE_INTERVAL_SECONDS, Number(autosaveConfig.intervalSeconds))
+      : DEFAULT_AUTOSAVE_SETTINGS.intervalSeconds;
+
+    return {
+      enabled: Boolean(autosaveConfig.enabled),
+      intervalSeconds: interval,
+    };
+  }
+
+  return DEFAULT_AUTOSAVE_SETTINGS;
+}
+
+/**
+ * Extracts autosave preferences from a YAML document.
+ *
+ * @param yamlText - Raw YAML settings content.
+ * @returns Parsed autosave settings with defaults on failure.
+ */
+function parseAutosaveSettings(yamlText: string): AutosaveSettings {
+  try {
+    const settings = yamlParsingService.parse<AppSettings>(yamlText);
+
+    return normalizeAutosaveSettings(settings.autosave);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    logService.add(`Unable to parse settings. Using default autosave values. (${reason})`, 'warning');
+
+    return DEFAULT_AUTOSAVE_SETTINGS;
+  }
+}
 
 /**
  * Checks whether the provided file path points to a supported image file.
@@ -94,6 +154,9 @@ function App() {
   const [settingsPath, setSettingsPath] = useState('');
   const [settingsError, setSettingsError] = useState<string | null>(null);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [autosaveSettings, setAutosaveSettings] = useState<AutosaveSettings>(
+    DEFAULT_AUTOSAVE_SETTINGS,
+  );
 
   type DragTarget = 'sidebar' | 'preview' | 'logs';
   const dragState = useRef<{
@@ -104,11 +167,73 @@ function App() {
     initialPreviewWidth: number;
     initialLogsHeight: number;
   } | null>(null);
+  const openFilesRef = useRef<OpenFile[]>([]);
+  const autosaveTimerId = useRef<ReturnType<typeof window.setTimeout> | null>(
+    null,
+  );
+  const autosaveInProgress = useRef(false);
+  const performAutosaveRef = useRef<() => Promise<void>>(async () => {});
   const layoutHydrated = useRef(false);
+
+  /**
+   * Clears any pending autosave timer.
+   */
+  const clearAutosaveTimer = useCallback(() => {
+    if (autosaveTimerId.current) {
+      window.clearTimeout(autosaveTimerId.current);
+      autosaveTimerId.current = null;
+    }
+  }, []);
+
+  /**
+   * Schedules an autosave to run after the configured idle interval following the last edit.
+   */
+  const scheduleAutosaveAfterIdle = useCallback(() => {
+    clearAutosaveTimer();
+
+    if (!project || !autosaveSettings.enabled) {
+      return;
+    }
+
+    const hasDirtyFiles = openFilesRef.current.some(
+      file => file.fileType === 'text' && file.isDirty,
+    );
+
+    if (!hasDirtyFiles) {
+      return;
+    }
+
+    const delayMs =
+      Math.max(MIN_AUTOSAVE_INTERVAL_SECONDS, autosaveSettings.intervalSeconds) * 1000;
+
+    autosaveTimerId.current = window.setTimeout(() => {
+      void performAutosaveRef.current();
+    }, delayMs);
+  }, [autosaveSettings, clearAutosaveTimer, project]);
 
   useEffect(() => {
     logService.add('Deck Studio ready.');
   }, []);
+
+  useEffect(() => {
+    async function hydrateSettings() {
+      try {
+        const settings = await window.api.loadSettings();
+        setSettingsContent(settings.content);
+        setSettingsPath(settings.path);
+        setAutosaveSettings(parseAutosaveSettings(settings.content));
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        logService.add(`Unable to load settings. Using defaults. (${reason})`, 'warning');
+      }
+    }
+
+    void hydrateSettings();
+  }, []);
+
+  useEffect(() => {
+    openFilesRef.current = openFiles;
+  }, [openFiles]);
 
   useEffect(() => {
     async function hydrateLayout() {
@@ -180,6 +305,34 @@ function App() {
       unsubscribe();
     };
   }, [project]);
+
+  useEffect(() => {
+    return () => {
+      clearAutosaveTimer();
+    };
+  }, [clearAutosaveTimer]);
+
+  useEffect(() => {
+    if (!project || !autosaveSettings.enabled) {
+      clearAutosaveTimer();
+      return;
+    }
+
+    const hasDirtyFiles = openFiles.some(file => file.fileType === 'text' && file.isDirty);
+
+    if (!hasDirtyFiles) {
+      clearAutosaveTimer();
+      return;
+    }
+
+    scheduleAutosaveAfterIdle();
+  }, [
+    autosaveSettings,
+    clearAutosaveTimer,
+    openFiles,
+    project,
+    scheduleAutosaveAfterIdle,
+  ]);
 
   useEffect(() => {
     function handlePointerMove(event: PointerEvent) {
@@ -677,6 +830,61 @@ function App() {
   }
 
   /**
+   * Saves all dirty text files using the configured autosave interval.
+   */
+  const performAutosave = useCallback(async () => {
+    if (autosaveInProgress.current) {
+      return;
+    }
+
+    const dirtyFiles = openFilesRef.current.filter(
+      file => file.fileType === 'text' && file.isDirty,
+    );
+
+    if (dirtyFiles.length === 0) {
+      return;
+    }
+
+    autosaveInProgress.current = true;
+
+    try {
+      for (const file of dirtyFiles) {
+        await fileService.saveTextFile(file.path, file.content);
+      }
+
+      const savedPaths = dirtyFiles.map(file => file.path);
+      const savedNames = dirtyFiles.map(file => file.name).join(', ');
+
+      setOpenFiles(prev => {
+        const nextFiles = prev.map(file =>
+          savedPaths.includes(file.path) && file.fileType === 'text'
+            ? { ...file, isDirty: false }
+            : file,
+        );
+
+        openFilesRef.current = nextFiles;
+
+        return nextFiles;
+      });
+
+      const countLabel = dirtyFiles.length === 1 ? 'file' : 'files';
+      logService.add(`Autosaved ${dirtyFiles.length} ${countLabel}: ${savedNames}`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      logService.add(`Autosave failed: ${reason}`, 'error');
+    } finally {
+      autosaveInProgress.current = false;
+      if (openFilesRef.current.some(file => file.fileType === 'text' && file.isDirty)) {
+        scheduleAutosaveAfterIdle();
+      }
+    }
+  }, [scheduleAutosaveAfterIdle]);
+
+  useEffect(() => {
+    performAutosaveRef.current = performAutosave;
+  }, [performAutosave]);
+
+  /**
    * Opens the settings modal by hydrating it with the persisted YAML.
    */
   async function handleOpenSettings() {
@@ -685,6 +893,7 @@ function App() {
       const settings = await window.api.loadSettings();
       setSettingsContent(settings.content);
       setSettingsPath(settings.path);
+      setAutosaveSettings(parseAutosaveSettings(settings.content));
       setIsSettingsOpen(true);
       logService.add(`Loaded settings from ${settings.path}`);
     } catch (error) {
@@ -713,6 +922,7 @@ function App() {
       const result = await window.api.saveSettings(settingsContent);
       setSettingsPath(result.path);
       logService.add(`Settings saved to ${result.path}`);
+      setAutosaveSettings(parseAutosaveSettings(settingsContent));
       setIsSettingsOpen(false);
     } catch (error) {
       console.error('Failed to save settings', error);

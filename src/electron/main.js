@@ -73,8 +73,11 @@ const SETTINGS_TEMPLATE = `# Deck Studio application settings
 # theme: Controls the editor theme. Allowed values: dark, light.
 theme: dark
 
-# autosave: Automatically save files when switching tabs. Allowed values: true, false.
-autosave: false
+autosave:
+  # enabled: Automatically save files at the configured interval. Allowed values: true, false.
+  enabled: false
+  # intervalSeconds: Time between autosaves in seconds. Allowed values: integers 5 and above.
+  intervalSeconds: 30
 
 editor:
   # fontSize: Font size used in the built-in editor. Allowed values: integer between 10 and 24.
