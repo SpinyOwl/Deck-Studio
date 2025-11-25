@@ -14,8 +14,7 @@ import {type FileNode} from '../types/files';
 import {fileService, FileService} from './FileService';
 import {logService} from './LogService';
 import {yamlParsingService, YamlParsingService} from './YamlParsingService';
-
-const PROJECT_CONFIG_FILENAME = 'card-deck-project.yml';
+import {PROJECT_CONFIG_FILENAME} from '../constants/project';
 const CARDS_FILENAME = 'cards.csv';
 
 /**

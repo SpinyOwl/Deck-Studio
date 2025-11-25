@@ -20,6 +20,7 @@ import {yamlParsingService} from './services/YamlParsingService';
 import {type FileNode} from './types/files';
 import {type Project} from './types/project';
 import {type AppSettings, type AutosaveSettingsConfig} from './types/settings';
+import {PROJECT_CONFIG_FILENAME} from './constants/project';
 import {
   containsPathSeparator,
   getParentPath,
@@ -776,6 +777,12 @@ function App() {
 
     const entrySeparator = getPathSeparator(sourcePath);
     const entryName = sourcePath.split(entrySeparator).pop() ?? 'entry';
+
+    if (entryName === PROJECT_CONFIG_FILENAME) {
+      logService.add(`${PROJECT_CONFIG_FILENAME} must stay in the project root.`, 'warning');
+      return;
+    }
+
     const destinationPath = joinPathSegments(targetDirectory, entryName);
 
     if (destinationPath === sourcePath) {

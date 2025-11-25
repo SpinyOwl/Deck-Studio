@@ -7,6 +7,7 @@ import {
   isDescendantPath,
   joinPathSegments,
 } from '../../utils/path';
+import {PROJECT_CONFIG_FILENAME} from '../../constants/project';
 import './FileTree.css';
 
 interface Props {
@@ -62,6 +63,19 @@ function collectDirectoryPaths(nodes: FileNode[]): Set<string> {
 
   return directories;
 }
+
+/**
+ * Checks whether a given file system path matches the project config file.
+ *
+ * @param path - Absolute path to inspect.
+ * @returns True when the path points to the project configuration file.
+ */
+const isProjectConfigPath = (path: string): boolean => {
+  const separator = getPathSeparator(path);
+  const fileName = path.split(separator).pop();
+
+  return fileName === PROJECT_CONFIG_FILENAME;
+};
 
 /**
  * Displays a hierarchical file tree with selectable files and expandable directories.
@@ -140,6 +154,10 @@ export const FileTree: React.FC<Props> = ({ nodes, selectedPath, onSelectFile, o
       return false;
     }
 
+    if (isProjectConfigPath(dragSourcePath)) {
+      return false;
+    }
+
     const targetDirectory = resolveDropDirectory(node);
     if (!targetDirectory) {
       return false;
@@ -155,6 +173,11 @@ export const FileTree: React.FC<Props> = ({ nodes, selectedPath, onSelectFile, o
   };
 
   const handleDragStart = (event: React.DragEvent<HTMLDivElement>, sourcePath: string) => {
+    if (isProjectConfigPath(sourcePath)) {
+      event.preventDefault();
+      return;
+    }
+
     setDragSourcePath(sourcePath);
     setDropTargetPath(null);
     event.dataTransfer.effectAllowed = 'move';
@@ -238,6 +261,7 @@ export const FileTree: React.FC<Props> = ({ nodes, selectedPath, onSelectFile, o
     }
 
     const isSelected = node.path === selectedPath;
+    const isProjectConfigFile = node.name === PROJECT_CONFIG_FILENAME;
     return (
       <div
         key={node.path}
@@ -251,7 +275,7 @@ export const FileTree: React.FC<Props> = ({ nodes, selectedPath, onSelectFile, o
         onDragLeave={handleDragLeave}
         onDrop={(event) => handleDrop(event, node)}
         role="button"
-        draggable
+        draggable={!isProjectConfigFile}
       >
         {renderIcon('description', 'file-tree__icon--file')}
         <span className="file-tree__name">{node.name}</span>
