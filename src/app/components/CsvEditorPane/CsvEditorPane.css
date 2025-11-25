@@ -1,0 +1,26 @@
+:root {
+    --table-bg-color: var(--color-surface-raised);
+    --table-text-color: var(--color-text-primary);
+    --header-bg-color: var(--color-surface-raised);
+    --header-text-color: var(--color-text-primary);
+    --frame-component-bg-color: var(--color-surface-raised);
+    --table-border-color: var(--color-border-subtle);
+}
+
+/* src/components/CsvEditorPane/CsvEditorPane.css */
+.csv-editor {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background-color: #1f1f1f;
+    border-radius: 4px;
+}
+
+.csv-editor__table {
+}
+
+.csv-editor__table .table-wrapper {
+    background-color: inherit;
+}

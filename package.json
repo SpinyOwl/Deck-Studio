@@ -13,7 +13,7 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@vitejs/plugin-react-swc": "^4.2.2",
-    "active-table": "^1.1.7",
+    "active-table-react": "^1.1.7",
     "monaco-editor": "^0.55.1",
     "papaparse": "file:vendor/papaparse",
     "react": "^19.2.0",

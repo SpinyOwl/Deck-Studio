@@ -28,6 +28,7 @@ import {
   isDescendantPath,
   joinPathSegments,
 } from './utils/path';
+import {type CsvGrid, normalizeCsvGrid, parseCsvGrid, stringifyCsvGrid} from './utils/csv';
 import './styles/AppLayout.css';
 import './styles/Panel.css';
 
@@ -38,7 +39,7 @@ const RESIZE_HANDLE_THICKNESS = 4;
 const MIN_EDITOR_WIDTH = MIN_PANEL_SIZE;
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg'];
 
-type FileType = 'text' | 'image';
+type FileType = 'text' | 'image' | 'csv';
 
 type OpenFile = {
   path: string;
@@ -46,6 +47,7 @@ type OpenFile = {
   content: string;
   isDirty: boolean;
   fileType: FileType;
+  csvData?: CsvGrid;
 };
 
 type AutosaveSettings = {
@@ -136,6 +138,40 @@ function getImageMimeType(path: string): string {
   return 'application/octet-stream';
 }
 
+/**
+ * Identifies CSV files using their extension.
+ *
+ * @param path - Absolute file system path to evaluate.
+ * @returns True when the file is a CSV document.
+ */
+function isCsvFile(path: string): boolean {
+  return path.toLowerCase().endsWith('.csv');
+}
+
+/**
+ * Determines whether a file supports saving through the text pipeline.
+ *
+ * @param file - Open file metadata.
+ * @returns True when the file content can be persisted as text.
+ */
+function isEditableFile(file: OpenFile): boolean {
+  return file.fileType === 'text' || file.fileType === 'csv';
+}
+
+/**
+ * Serializes an open file into the persisted text representation.
+ *
+ * @param file - Open file metadata.
+ * @returns String content to write to disk.
+ */
+function serializeOpenFile(file: OpenFile): string {
+  if (file.fileType === 'csv' && file.csvData) {
+    return stringifyCsvGrid(file.csvData);
+  }
+
+  return file.content;
+}
+
 function App() {
   const [project, setProject] = useState<Project | null>(null);
 
@@ -197,7 +233,7 @@ function App() {
     }
 
     const hasDirtyFiles = openFilesRef.current.some(
-      file => file.fileType === 'text' && file.isDirty,
+      file => isEditableFile(file) && file.isDirty,
     );
 
     if (!hasDirtyFiles) {
@@ -319,7 +355,7 @@ function App() {
       return;
     }
 
-    const hasDirtyFiles = openFiles.some(file => file.fileType === 'text' && file.isDirty);
+    const hasDirtyFiles = openFiles.some(file => isEditableFile(file) && file.isDirty);
 
     if (!hasDirtyFiles) {
       clearAutosaveTimer();
@@ -617,6 +653,7 @@ function App() {
 
     try {
       const isImage = isImageFile(node.path);
+      const isCsv = isCsvFile(node.path);
       if (isImage) {
         const base64Content = await fileService.readBinaryFile(node.path);
         const mimeType = getImageMimeType(node.path);
@@ -631,6 +668,25 @@ function App() {
       }
 
       const text = await fileService.readTextFile(node.path);
+
+      if (isCsv) {
+        const csvData = parseCsvGrid(text);
+        setOpenFiles(prev => [
+          ...prev,
+          {
+            path: node.path,
+            name: node.name,
+            content: text,
+            csvData,
+            isDirty: false,
+            fileType: 'csv',
+          },
+        ]);
+        setActiveFilePath(node.path);
+        logService.add(`Opened CSV file ${node.name}`);
+        return;
+      }
+
       setOpenFiles(prev => [
         ...prev,
         { path: node.path, name: node.name, content: text, isDirty: false, fileType: 'text' },
@@ -820,13 +876,16 @@ function App() {
   async function handleSave() {
     if (!activeFilePath) return;
     const targetFile = openFiles.find(file => file.path === activeFilePath);
-    if (!targetFile || targetFile.fileType !== 'text') return;
+    if (!targetFile || !isEditableFile(targetFile)) return;
 
     try {
-      await fileService.saveTextFile(targetFile.path, targetFile.content);
+      const content = serializeOpenFile(targetFile);
+      await fileService.saveTextFile(targetFile.path, content);
       setOpenFiles(prev =>
         prev.map(file =>
-          file.path === activeFilePath ? { ...file, isDirty: false } : file,
+          file.path === activeFilePath && isEditableFile(file)
+            ? { ...file, isDirty: false, content }
+            : file,
         ),
       );
       logService.add(`Saved ${targetFile.name}`);
@@ -845,7 +904,7 @@ function App() {
     }
 
     const dirtyFiles = openFilesRef.current.filter(
-      file => file.fileType === 'text' && file.isDirty,
+      file => isEditableFile(file) && file.isDirty,
     );
 
     if (dirtyFiles.length === 0) {
@@ -856,18 +915,22 @@ function App() {
 
     try {
       for (const file of dirtyFiles) {
-        await fileService.saveTextFile(file.path, file.content);
+        await fileService.saveTextFile(file.path, serializeOpenFile(file));
       }
 
       const savedPaths = dirtyFiles.map(file => file.path);
       const savedNames = dirtyFiles.map(file => file.name).join(', ');
 
       setOpenFiles(prev => {
-        const nextFiles = prev.map(file =>
-          savedPaths.includes(file.path) && file.fileType === 'text'
-            ? { ...file, isDirty: false }
-            : file,
-        );
+        const nextFiles = prev.map(file => {
+          if (!savedPaths.includes(file.path) || !isEditableFile(file)) {
+            return file;
+          }
+
+          const content = serializeOpenFile(file);
+
+          return { ...file, isDirty: false, content };
+        });
 
         openFilesRef.current = nextFiles;
 
@@ -881,7 +944,7 @@ function App() {
       logService.add(`Autosave failed: ${reason}`, 'error');
     } finally {
       autosaveInProgress.current = false;
-      if (openFilesRef.current.some(file => file.fileType === 'text' && file.isDirty)) {
+      if (openFilesRef.current.some(file => isEditableFile(file) && file.isDirty)) {
         scheduleAutosaveAfterIdle();
       }
     }
@@ -952,13 +1015,33 @@ function App() {
    *
    * @param val - New editor content value.
    */
-  function handleEditorChange(val: string) {
+  function handleTextEditorChange(val: string) {
     if (!activeFilePath) return;
 
     setOpenFiles(prev =>
       prev.map(file =>
         file.path === activeFilePath && file.fileType === 'text'
           ? { ...file, content: val, isDirty: true }
+          : file,
+      ),
+    );
+  }
+
+  /**
+   * Normalizes and tracks edits from the CSV grid editor.
+   *
+   * @param nextData - Updated CSV matrix from the grid component.
+   */
+  function handleCsvEditorChange(nextData: CsvGrid) {
+    if (!activeFilePath) return;
+
+    const normalized = normalizeCsvGrid(nextData);
+    const serialized = stringifyCsvGrid(normalized);
+
+    setOpenFiles(prev =>
+      prev.map(file =>
+        file.path === activeFilePath && file.fileType === 'csv'
+          ? { ...file, content: serialized, csvData: normalized, isDirty: true }
           : file,
       ),
     );
@@ -1117,7 +1200,8 @@ function App() {
       <EditorPanel
         openFiles={openFiles}
         activePath={activeFile?.path ?? null}
-        onChange={handleEditorChange}
+        onChange={handleTextEditorChange}
+        onCsvChange={handleCsvEditorChange}
         onSave={handleSave}
         onSelectFile={setActiveFilePath}
         onCloseFile={handleCloseFile}
