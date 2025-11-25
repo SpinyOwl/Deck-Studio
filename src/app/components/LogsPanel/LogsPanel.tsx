@@ -22,8 +22,10 @@ const LogMessage: React.FC<LogMessageProps> = ({ message }) => {
   const messageRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
-    const element = messageRef.current;
-    const frameId = window.requestAnimationFrame(() => {
+    let frameId = 0;
+
+    const measureOverflow = () => {
+      const element = messageRef.current;
       if (!element) {
         setCanExpand(false);
         return;
@@ -38,9 +40,26 @@ const LogMessage: React.FC<LogMessageProps> = ({ message }) => {
 
       const lineCount = Math.round(element.scrollHeight / parsedLineHeight);
       setCanExpand(lineCount > 1);
+    };
+
+    frameId = window.requestAnimationFrame(measureOverflow);
+
+    const resizeObserver = new ResizeObserver(() => {
+      window.cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(measureOverflow);
     });
 
-    return () => window.cancelAnimationFrame(frameId);
+    if (messageRef.current) {
+      resizeObserver.observe(messageRef.current);
+    }
+
+    window.addEventListener('resize', measureOverflow);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', measureOverflow);
+    };
   }, [message]);
 
   const toggleLabel = isExpanded ? 'Collapse log message' : 'Expand log message';
