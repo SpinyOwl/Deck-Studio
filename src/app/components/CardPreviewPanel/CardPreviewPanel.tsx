@@ -33,16 +33,17 @@ interface PointerOrigin {
  * @returns Complete HTML document string.
  */
 function buildPreviewDocument(html: string): string {
-  return '<!doctype html>'
-    + '<html>'
-    + '<head>'
-    + '<style>'
-    + 'html, body { margin: 0; padding: 0; width: 100%; height: 100%; }'
-    + '* { box-sizing: border-box; }'
-    + '</style>'
-    + '</head>'
-    + `<body>${html}</body>`
-    + '</html>';
+  return `<!doctype html>
+<html>
+<head>
+  <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+      body { overflow: hidden; }
+      * { box-sizing: border-box; }
+  </style>
+</head>
+<body>${html}</body>
+</html>`;
 }
 
 /**
