@@ -56,6 +56,7 @@ export const MonacoEditorPane: React.FC<Props> = ({ path, value, onChange, onSav
         height="100%"
         language={inferLanguage(path)}
         theme="vs-dark"
+        path={path}
         value={value}
         onChange={(val) => onChange(val ?? '')}
         onMount={handleEditorMount}
