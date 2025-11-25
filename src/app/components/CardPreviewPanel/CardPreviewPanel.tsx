@@ -2,10 +2,8 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   type CardRecord,
   defaultLayoutConfig,
-  type DimensionUnit,
   type Project,
   type ProjectConfig,
-  toPixels,
 } from '../../types/project';
 import './CardPreviewPanel.css';
 
@@ -18,8 +16,6 @@ interface Props {
 interface CardDimensions {
   readonly width: number;
   readonly height: number;
-  readonly unit: DimensionUnit;
-  readonly dpi: number;
 }
 
 interface PointerOrigin {
@@ -51,41 +47,18 @@ function buildPreviewDocument(html: string): string {
 }
 
 /**
- * Converts a dimension value to pixels based on the unit and DPI.
- *
- * @param value - Dimension value to convert.
- * @param unit - Unit of the provided value.
- * @param dpi - Dots per inch for physical units.
- * @returns Pixel value for the provided dimension.
- */
-function convertToPixels(value: number, unit: DimensionUnit, dpi: number): number {
-  switch (unit) {
-    case 'px':
-      return value;
-    case 'inch':
-    case 'mm':
-    case 'cm':
-      return toPixels(value, unit, dpi);
-    default:
-      return value;
-  }
-}
-
-/**
  * Normalizes the CSV column names used for card sizing overrides.
  *
  * @param config - Project configuration containing custom column names.
- * @returns Normalized width, height, and unit column identifiers.
+ * @returns Normalized width and height column identifiers.
  */
 function getDimensionColumns(config: ProjectConfig | null): {
   widthColumn: string;
   heightColumn: string;
-  sizeUnitColumn: string;
 } {
   return {
     widthColumn: config?.csv?.widthColumn?.trim() || 'cardWidth',
     heightColumn: config?.csv?.heightColumn?.trim() || 'cardHeight',
-    sizeUnitColumn: config?.csv?.sizeUnitColumn?.trim() || 'cardSizeUnit',
   };
 }
 
@@ -110,23 +83,17 @@ function parseDimension(value: string | undefined): number | null {
  *
  * @param card - Resolved card record.
  * @param config - Project configuration for layout fallbacks.
- * @returns Normalized card dimensions with unit and DPI.
+ * @returns Normalized card dimensions in pixels.
  */
 function resolveCardDimensions(card: CardRecord | null, config: ProjectConfig | null): CardDimensions {
   const layout = {...defaultLayoutConfig, ...(config?.layout || {})};
   const columns = getDimensionColumns(config);
   const width = parseDimension(card?.[columns.widthColumn]) ?? layout.width ?? defaultLayoutConfig.width;
   const height = parseDimension(card?.[columns.heightColumn]) ?? layout.height ?? defaultLayoutConfig.height;
-  const normalizedUnit = card?.[columns.sizeUnitColumn]?.toLowerCase()?.trim();
-  const unit: DimensionUnit = (normalizedUnit === 'px' || normalizedUnit === 'mm' || normalizedUnit === 'cm' || normalizedUnit === 'inch')
-    ? normalizedUnit
-    : layout.unit ?? defaultLayoutConfig.unit ?? 'inch';
 
   return {
     width: width ?? defaultLayoutConfig.width!,
     height: height ?? defaultLayoutConfig.height!,
-    unit,
-    dpi: layout.dpi ?? defaultLayoutConfig.dpi ?? 300,
   };
 }
 
@@ -245,8 +212,8 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
   }, [resolvedCards, safeSelectedCard]);
 
   const dimensions = useMemo(() => resolveCardDimensions(selectedCard?.card ?? null, project?.config ?? null), [project?.config, selectedCard]);
-  const cardWidthPx = useMemo(() => convertToPixels(dimensions.width, dimensions.unit, dimensions.dpi), [dimensions]);
-  const cardHeightPx = useMemo(() => convertToPixels(dimensions.height, dimensions.unit, dimensions.dpi), [dimensions]);
+  const cardWidthPx = dimensions.width;
+  const cardHeightPx = dimensions.height;
   const iframeDocument = selectedCard ? buildPreviewDocument(selectedCard.html) : '';
   const scaledWidth = cardWidthPx * zoom;
   const scaledHeight = cardHeightPx * zoom;
@@ -509,11 +476,7 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
           <div className="card-preview__dimensions" aria-label="Card dimensions">
             <div className="card-preview__dimensions-row">
               <span className="card-preview__dimensions-label">Size:</span>
-              <span>{dimensions.width.toFixed(2)} × {dimensions.height.toFixed(2)} {dimensions.unit}</span>
-            </div>
-            <div className="card-preview__dimensions-row">
-              <span className="card-preview__dimensions-label">Pixels:</span>
-              <span>{Math.round(cardWidthPx)} × {Math.round(cardHeightPx)} px @ {dimensions.dpi} dpi</span>
+              <span>{Math.round(cardWidthPx)} × {Math.round(cardHeightPx)} px</span>
             </div>
             <div className="card-preview__dimensions-row">
               <span className="card-preview__dimensions-label">Zoom:</span>
