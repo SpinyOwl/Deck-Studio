@@ -17,6 +17,13 @@ import {projectService} from './services/ProjectService';
 import {layoutService} from './services/LayoutService';
 import {type FileNode} from './types/files';
 import {type Project} from './types/project';
+import {
+  containsPathSeparator,
+  getParentPath,
+  getPathSeparator,
+  isDescendantPath,
+  joinPathSegments,
+} from './utils/path';
 import './styles/AppLayout.css';
 import './styles/Panel.css';
 
@@ -66,61 +73,6 @@ function getImageMimeType(path: string): string {
   if (lowerPath.endsWith('.svg')) return 'image/svg+xml';
 
   return 'application/octet-stream';
-}
-
-/**
- * Identifies the separator used by a path.
- *
- * @param path - Path to inspect.
- * @returns The detected separator, defaulting to '/'.
- */
-function getPathSeparator(path: string): string {
-  return path.includes('\\') ? '\\' : '/';
-}
-
-/**
- * Joins a base path with a child name using the separator present in the base.
- *
- * @param basePath - Absolute base directory path.
- * @param childName - File or folder name to append.
- * @returns Combined absolute path to the child entry.
- */
-function joinPathSegments(basePath: string, childName: string): string {
-  const separator = getPathSeparator(basePath);
-  const normalizedBase = basePath.endsWith(separator) ? basePath : `${basePath}${separator}`;
-
-  return `${normalizedBase}${childName}`;
-}
-
-/**
- * Resolves the parent directory of a provided path string.
- *
- * @param targetPath - Absolute path to resolve.
- * @returns Parent directory path or null when it cannot be determined.
- */
-function getParentPath(targetPath: string): string | null {
-  const separator = getPathSeparator(targetPath);
-  const normalizedPath = targetPath.endsWith(separator) ? targetPath.slice(0, -1) : targetPath;
-  const segments = normalizedPath.split(separator);
-
-  if (segments.length <= 1) {
-    return null;
-  }
-
-  segments.pop();
-  const parent = segments.join(separator);
-
-  return parent || null;
-}
-
-/**
- * Checks whether the provided name includes path separators.
- *
- * @param name - File system entry name to validate.
- * @returns True when a forward or backslash is present.
- */
-function containsPathSeparator(name: string): boolean {
-  return /[\\/]/.test(name);
 }
 
 function App() {
@@ -648,6 +600,61 @@ function App() {
   }
 
   /**
+   * Moves a file or folder into a different directory.
+   *
+   * @param sourcePath - Absolute path of the entry to move.
+   * @param targetDirectory - Destination directory where the entry will be placed.
+   */
+  async function handleMoveEntry(sourcePath: string, targetDirectory: string): Promise<void> {
+    if (!project) {
+      logService.add('Open a project before moving files or folders.', 'warning');
+      return;
+    }
+
+    if (!targetDirectory.trim()) {
+      logService.add('Select a valid destination directory.', 'warning');
+      return;
+    }
+
+    if (isDescendantPath(targetDirectory, sourcePath)) {
+      logService.add('Cannot move a folder into one of its own subfolders.', 'warning');
+      return;
+    }
+
+    const entrySeparator = getPathSeparator(sourcePath);
+    const entryName = sourcePath.split(entrySeparator).pop() ?? 'entry';
+    const destinationPath = joinPathSegments(targetDirectory, entryName);
+
+    if (destinationPath === sourcePath) {
+      logService.add('Select a different destination to move this entry.', 'warning');
+      return;
+    }
+
+    try {
+      await fileService.renamePath(sourcePath, destinationPath);
+
+      setOpenFiles(prev =>
+        prev.map(file =>
+          file.path === sourcePath
+            ? { ...file, path: destinationPath, name: entryName }
+            : file,
+        ),
+      );
+      setActiveFilePath(prev => (prev === sourcePath ? destinationPath : prev));
+
+      const refreshed = await projectService.reloadProject(project.rootPath);
+      if (refreshed) {
+        setProject(refreshed);
+      }
+
+      logService.add(`Moved ${entryName} to ${targetDirectory}.`);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      logService.add(`Failed to move ${entryName}: ${reason}`, 'error');
+    }
+  }
+
+  /**
    * Persists the active file to disk and clears its dirty state.
    */
   async function handleSave() {
@@ -766,6 +773,8 @@ function App() {
     handleCreateTreeEntry(directoryPath, folderName, 'folder');
   const renameEntry = (currentPath: string, nextName: string) =>
     handleRenameEntry(currentPath, nextName);
+  const moveEntry = (sourcePath: string, targetDirectory: string) =>
+    handleMoveEntry(sourcePath, targetDirectory);
 
   return (
     <div
@@ -875,6 +884,7 @@ function App() {
         onCreateFile={createFileAt}
         onCreateFolder={createFolderAt}
         onRenameEntry={renameEntry}
+        onMoveEntry={moveEntry}
       />
 
       <div

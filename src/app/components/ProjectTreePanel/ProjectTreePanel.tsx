@@ -12,6 +12,7 @@ interface Props {
   readonly onCreateFile: (directoryPath: string, fileName: string) => Promise<void>;
   readonly onCreateFolder: (directoryPath: string, folderName: string) => Promise<void>;
   readonly onRenameEntry: (currentPath: string, nextName: string) => Promise<void>;
+  readonly onMoveEntry: (sourcePath: string, targetDirectory: string) => Promise<void>;
 }
 
 type ContextMenuState = {
@@ -38,12 +39,13 @@ export const ProjectTreePanel: React.FC<Props> = ({
   tree,
   selectedPath,
   onSelectFile,
-  collapsed,
-  projectRoot,
-  onCreateFile,
-  onCreateFolder,
-  onRenameEntry,
-}) => {
+    collapsed,
+    projectRoot,
+    onCreateFile,
+    onCreateFolder,
+    onRenameEntry,
+    onMoveEntry,
+  }) => {
   const hasTree = tree.length > 0;
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [namePrompt, setNamePrompt] = useState<NamePromptState | null>(null);
@@ -217,6 +219,7 @@ export const ProjectTreePanel: React.FC<Props> = ({
             selectedPath={selectedPath}
             onSelectFile={onSelectFile}
             onContextMenu={openContextMenu}
+            onMoveEntry={onMoveEntry}
           />
         ) : (
           <div className="placeholder-text">Open a project folder to see files here.</div>

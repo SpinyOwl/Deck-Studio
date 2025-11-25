@@ -174,6 +174,7 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
   const [selectedCardValue, setSelectedCardValue] = useState('0');
   const [zoom, setZoom] = useState(1);
   const [fitToViewport, setFitToViewport] = useState(false);
+  const [manualZoomMode, setManualZoomMode] = useState<'original' | 'zoom-in' | 'zoom-out'>('original');
   const [isPanning, setIsPanning] = useState(false);
   const isPanningRef = useRef(false);
   const [viewportSize, setViewportSize] = useState({width: 0, height: 0});
@@ -256,9 +257,11 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
    * Applies a manual zoom value and disables fit-to-viewport mode.
    *
    * @param next - Target zoom value or updater.
+   * @param mode - Source control that triggered the zoom change.
    */
-  const applyZoom = useCallback((next: number | ((value: number) => number)): void => {
+  const applyZoom = useCallback((next: number | ((value: number) => number), mode: 'original' | 'zoom-in' | 'zoom-out'): void => {
     setFitToViewport(false);
+    setManualZoomMode(mode);
     setZoom(current => {
       const resolved = typeof next === 'function' ? next(current) : next;
       const clamped = clampZoom(resolved);
@@ -289,21 +292,21 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
    * Resets the preview zoom back to 100%.
    */
   const handleResetZoom = (): void => {
-    applyZoom(1);
+    applyZoom(1, 'original');
   };
 
   /**
    * Increases the preview zoom level.
    */
   const handleZoomIn = (): void => {
-    applyZoom(value => value + 0.05);
+    applyZoom(value => value + 0.05, 'zoom-in');
   };
 
   /**
    * Decreases the preview zoom level.
    */
   const handleZoomOut = (): void => {
-    applyZoom(value => value - 0.05);
+    applyZoom(value => value - 0.05, 'zoom-out');
   };
 
   /**
@@ -440,6 +443,7 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
 
   const hasProject = Boolean(project);
   const hasCards = resolvedCards.length > 0;
+  const activeToolbarButton = fitToViewport ? 'fit' : manualZoomMode;
 
   return (<section className={`card-preview panel ${collapsed ? 'panel--collapsed' : 'panel--expanded'}`}>
     <div className="panel__header">Card preview</div>
@@ -486,10 +490,25 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
         </div>
 
         <div className="card-preview__toolbar" aria-label="Card preview toolbar">
-          <ToolbarButton icon="view_real_size" label="Original size" onClick={handleResetZoom} />
-          <ToolbarButton icon="zoom_out" label="Zoom out" onClick={handleZoomOut} />
-          <ToolbarButton icon="zoom_in" label="Zoom in" onClick={handleZoomIn} />
-          <ToolbarButton icon="fit_screen" label="Zoom to fit" onClick={handleToggleFit} active={fitToViewport} />
+          <ToolbarButton
+            icon="view_real_size"
+            label="Original size"
+            onClick={handleResetZoom}
+            active={activeToolbarButton === 'original'}
+          />
+          <ToolbarButton
+            icon="zoom_out"
+            label="Zoom out"
+            onClick={handleZoomOut}
+            active={activeToolbarButton === 'zoom-out'}
+          />
+          <ToolbarButton
+            icon="zoom_in"
+            label="Zoom in"
+            onClick={handleZoomIn}
+            active={activeToolbarButton === 'zoom-in'}
+          />
+          <ToolbarButton icon="fit_screen" label="Zoom to fit" onClick={handleToggleFit} active={activeToolbarButton === 'fit'} />
 
           {hasLocalization && (<ToolbarSelect
             placeholder="Language"
