@@ -9,6 +9,22 @@ export interface CardRecord {
 }
 
 /**
+ * Describes PDF export configuration including page size and orientation.
+ */
+export interface PdfExportConfig {
+  pageSize?: string;
+  orientation?: 'portrait' | 'landscape';
+}
+
+/**
+ * Defines export settings for generated assets.
+ */
+export interface ExportConfig {
+  dpi?: number;
+  pdf?: PdfExportConfig;
+}
+
+/**
  * Configuration schema describing project metadata and rendering defaults.
  */
 export interface ProjectConfig {
@@ -24,6 +40,8 @@ export interface ProjectConfig {
   };
 
   layout?: CardLayoutConfig;
+
+  export?: ExportConfig;
 
   templates?: {
     default?: string;
