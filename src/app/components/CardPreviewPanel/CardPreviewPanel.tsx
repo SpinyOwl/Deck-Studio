@@ -384,7 +384,15 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
     setViewportSize(previous => (previous.width === width && previous.height === height)
       ? previous
       : {width, height});
-  }, []);
+
+    if (scaledWidth <= width) {
+      viewport.scrollLeft = Math.max((viewport.scrollWidth - width) / 2, 0);
+    }
+
+    if (scaledHeight <= height) {
+      viewport.scrollTop = Math.max((viewport.scrollHeight - height) / 2, 0);
+    }
+  }, [scaledHeight, scaledWidth]);
 
   useEffect(() => {
     if (!fitToViewport) {
