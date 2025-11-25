@@ -56,6 +56,9 @@ export const CsvEditorPane: React.FC<Props> = ({data, onChange, onSave, fileName
     table.addEventListener('at-data-change', handleCustomEvent as EventListener);
     table.addEventListener('keydown', handleKeyDown);
 
+    let overflow = table._overflow;
+    if (overflow) overflow.overflowContainer.style.height = "100%";
+
     return () => {
       table.onDataUpdate = () => {
       };
@@ -72,22 +75,22 @@ export const CsvEditorPane: React.FC<Props> = ({data, onChange, onSave, fileName
       className="csv-editor__table"
       ref={activeTableRef}
       stickyHeader={true}
-      overflow={{maxHeight:"100%", maxWidth:"100%"}}
+      overflow={{maxHeight: "100%", maxWidth: "100%"}}
+      preserveNarrowColumns={true}
 
       tableStyle={{
         backgroundColor: "var(--table-bg-color)",
         color: "var(--table-text-color)",
         borderColor: "var(--table-border-color)",
-        width: "100%",
         height: "100%"
       }}
 
       headerStyles={{
-        default: {backgroundColor: "var(--header-bg-color)", color: "var(--header-text-color)"},
+        default: {backgroundColor: "var(--header-bg-color)", color: "var(--header-text-color)", verticalAlign: "middle", fontWeight:"bold"},
         hoverColors: {backgroundColor: "var(--color-surface-hover)"}
       }}
       cellStyle={{
-        color: "var(--table-text-color)"
+        color: "var(--table-text-color)", padding:"4px 6px", borderColor: "var(--cell-border-color)"
       }}
       frameComponentsStyles={{
         styles: {
@@ -96,6 +99,25 @@ export const CsvEditorPane: React.FC<Props> = ({data, onChange, onSave, fileName
           }
         }
       }}
+      auxiliaryStyle={`      
+::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+::-webkit-scrollbar-thumb {
+    border-radius:2px;
+    background-color: rgba(255, 255, 255, 0.2);
+}
+::-webkit-scrollbar-track {
+    background-color: transparent;
+}
+::-webkit-scrollbar-button {
+    display: none;
+}
+::-webkit-scrollbar-corner {
+    display: none;
+}
+      `}
     />
   </div>);
 };

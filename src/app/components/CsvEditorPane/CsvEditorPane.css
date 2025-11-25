@@ -5,6 +5,7 @@
     --header-text-color: var(--color-text-primary);
     --frame-component-bg-color: var(--color-surface-raised);
     --table-border-color: var(--color-border-subtle);
+    --cell-border-color: var(--color-border-subtle)
 }
 
 /* src/components/CsvEditorPane/CsvEditorPane.css */
@@ -19,8 +20,13 @@
 }
 
 .csv-editor__table {
+    width: 100%;
+    height: 100%;
 }
 
 .csv-editor__table .table-wrapper {
     background-color: inherit;
+}
+#overflow-container {
+    height: 100%;
 }
