@@ -513,9 +513,12 @@ export class ProjectService {
       ...card,
     };
 
-    return Object
-      .entries(replacements)
-      .reduce((rendered, [placeholder, value]) => this.replacePlaceholder(rendered, placeholder, value ?? ''), withLocalization);
+    const withReplacements = Object.entries(replacements).reduce(
+      (rendered, [placeholder, value]) => this.replacePlaceholder(rendered, placeholder, value ?? ''),
+      withLocalization,
+    );
+
+    return this.highlightMissingPlaceholders(withReplacements);
   }
 
   /**
@@ -719,6 +722,28 @@ export class ProjectService {
     const placeholder = `{{t:${rawKey}}}`;
 
     return `<span style="color: red; text-shadow: 0 0 2px white;">${placeholder}</span>`;
+  }
+
+  /**
+   * Highlights unresolved card placeholders to make missing replacements visible in rendered output.
+   *
+   * @param rendered - Template content after applying known replacements.
+   * @returns Template content with unresolved placeholders wrapped for visibility.
+   */
+  private highlightMissingPlaceholders(rendered: string): string {
+    const placeholderPattern = /{{\s*([^{}]+?)\s*}}/g;
+
+    return rendered.replace(placeholderPattern, match => this.renderMissingPlaceholder(match));
+  }
+
+  /**
+   * Wraps an unresolved card placeholder in a red span to signal missing data.
+   *
+   * @param placeholder - Raw placeholder token that could not be replaced.
+   * @returns Styled HTML preserving the original placeholder text.
+   */
+  private renderMissingPlaceholder(placeholder: string): string {
+    return `<span style="color: red;">${placeholder}</span>`;
   }
 
   /**
