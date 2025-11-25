@@ -112,11 +112,6 @@
     color: inherit;
 }
 
-.project-tree__prompt-input:focus-visible {
-    outline: 2px solid var(--color-accent);
-    border-color: var(--color-accent);
-}
-
 .project-tree__prompt-actions {
     display: flex;
     justify-content: flex-end;

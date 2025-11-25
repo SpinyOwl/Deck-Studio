@@ -96,10 +96,6 @@
     border-color: var(--color-border);
 }
 
-.card-preview__icon-button:focus-visible {
-    outline: 2px solid var(--color-focus);
-    outline-offset: 2px;
-}
 
 .card-preview__select {
     min-width: 120px;
@@ -118,10 +114,6 @@
     min-width: 80px;
 }
 
-.card-preview__select:focus-visible {
-    outline: 2px solid var(--color-focus);
-    outline-offset: 2px;
-}
 
 .card-preview__dimensions {
     display: grid;
