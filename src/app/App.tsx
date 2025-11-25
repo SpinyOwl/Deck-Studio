@@ -304,6 +304,7 @@ function App() {
     }
 
     const rootPath = project.rootPath;
+    const currentLocale = project.localization?.locale;
 
     async function startWatchingProject() {
       try {
@@ -324,7 +325,7 @@ function App() {
 
       logService.add('Detected changes in project files. Reloading project...');
       try {
-        const reloaded = await projectService.reloadProject(changedRootPath);
+        const reloaded = await projectService.reloadProject(changedRootPath, currentLocale);
         if (!reloaded) {
           return;
         }
@@ -740,7 +741,7 @@ function App() {
         logService.add(`Created folder ${trimmedName}.`);
       }
 
-      const refreshed = await projectService.reloadProject(project.rootPath);
+      const refreshed = await projectService.reloadProject(project.rootPath, project.localization?.locale);
       if (refreshed) {
         setProject(refreshed);
       }
@@ -799,7 +800,7 @@ function App() {
       );
       setActiveFilePath(prev => (prev === currentPath ? nextPath : prev));
 
-      const refreshed = await projectService.reloadProject(project.rootPath);
+      const refreshed = await projectService.reloadProject(project.rootPath, project.localization?.locale);
       if (refreshed) {
         setProject(refreshed);
       }
@@ -860,7 +861,7 @@ function App() {
       );
       setActiveFilePath(prev => (prev === sourcePath ? destinationPath : prev));
 
-      const refreshed = await projectService.reloadProject(project.rootPath);
+      const refreshed = await projectService.reloadProject(project.rootPath, project.localization?.locale);
       if (refreshed) {
         setProject(refreshed);
       }

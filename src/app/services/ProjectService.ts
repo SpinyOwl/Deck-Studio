@@ -36,15 +36,16 @@ export class ProjectService {
    * Reloads an existing project using its root path, rebuilding the tree and configuration data.
    *
    * @param rootPath - Absolute path to the project root.
+   * @param localeOverride - Preferred locale to reload when available.
    * @returns Refreshed project metadata or null when loading fails.
    */
-  public async reloadProject(rootPath: string): Promise<Project | null> {
+  public async reloadProject(rootPath: string, localeOverride?: string): Promise<Project | null> {
     const selection = await this.loader.loadProjectFolder(rootPath);
     if (!selection) {
       return null;
     }
 
-    return this.buildProject(selection);
+    return this.buildProject(selection, localeOverride);
   }
 
   /**
@@ -79,7 +80,10 @@ export class ProjectService {
     };
   }
 
-  private async buildProject(selection: { rootPath: string; tree: FileNode[] }): Promise<Project> {
+  private async buildProject(
+    selection: { rootPath: string; tree: FileNode[] },
+    localeOverride?: string,
+  ): Promise<Project> {
     const configPath = this.loader.resolveProjectConfigPath(selection.rootPath);
     const config = await this.loader.loadProjectConfig(selection.rootPath);
     const cards = await this.loader.loadProjectCards(selection.rootPath);
@@ -87,6 +91,7 @@ export class ProjectService {
       selection.rootPath,
       config,
       selection.tree,
+      localeOverride,
     );
     const templateColumn = this.parser.getTemplateColumnName(config);
     const idColumn = this.parser.getIdColumnName(config);
