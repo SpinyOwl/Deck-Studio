@@ -13,10 +13,8 @@
     position: relative;
     flex: 1;
     overflow: auto;
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    background: linear-gradient(135deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0)), var(--color-surface);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    border: none;
+    background: transparent;
     cursor: grab;
 }
 
@@ -37,9 +35,8 @@
     align-items: center;
     justify-content: center;
     will-change: transform;
-    /** leave padding and keep size dictated by content */
-    padding: 4px;
-    box-sizing: content-box;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 .card-preview__iframe {
@@ -55,6 +52,7 @@
 
 .card-preview__toolbar {
     display: flex;
+    flex-direction: column;
     gap: 6px;
     align-items: center;
     padding-top: 6px;
@@ -62,6 +60,12 @@
     margin-top: auto;
     border-top: 1px solid var(--color-border);
     overflow-x: auto;
+}
+.card-preview__toolbar > .row {
+    display: flex;
+    justify-content: stretch;
+    justify-items: stretch;
+    gap: 2px
 }
 
 .card-preview__icon-button {
@@ -100,7 +104,7 @@
 
 
 .card-preview__select {
-    min-width: 120px;
+    min-width: 100px;
     height: 32px;
     padding: 4px 10px;
     border: 1px solid transparent;
@@ -110,10 +114,6 @@
     font-size: 0.95rem;
     flex-grow: 0;
     flex-shrink: 1;
-}
-
-.card-preview__select[aria-label="Language"] {
-    min-width: 80px;
 }
 
 

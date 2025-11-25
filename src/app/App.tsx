@@ -32,11 +32,13 @@ import {type CsvGrid, normalizeCsvGrid, parseCsvGrid, stringifyCsvGrid} from './
 import './styles/AppLayout.css';
 import './styles/Panel.css';
 
-const MIN_PANEL_SIZE = 150;
+const MIN_TREE_PANEL_SIZE = 150;
+const MIN_PREVIEW_PANEL_SIZE = 250;
+const MIN_LOG_PANEL_SIZE = 150;
 const COLLAPSED_THICKNESS = 0;
 const SIDE_TOOLBAR_WIDTH = 32;
 const RESIZE_HANDLE_THICKNESS = 4;
-const MIN_EDITOR_WIDTH = MIN_PANEL_SIZE;
+const MIN_EDITOR_WIDTH = 150;
 const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.svg'];
 
 type FileType = 'text' | 'image' | 'csv';
@@ -378,7 +380,7 @@ function App() {
 
       if (state.target === 'sidebar') {
         const nextWidth = Math.max(
-          MIN_PANEL_SIZE,
+          MIN_TREE_PANEL_SIZE,
           state.initialSidebarWidth + (event.clientX - state.startX),
         );
         setSidebarWidth(nextWidth);
@@ -386,7 +388,7 @@ function App() {
 
       if (state.target === 'preview') {
         const nextWidth = Math.max(
-          MIN_PANEL_SIZE,
+          MIN_PREVIEW_PANEL_SIZE,
           state.initialPreviewWidth - (event.clientX - state.startX),
         );
         setPreviewWidth(nextWidth);
@@ -394,7 +396,7 @@ function App() {
 
       if (state.target === 'logs') {
         const nextHeight = Math.max(
-          MIN_PANEL_SIZE,
+          MIN_LOG_PANEL_SIZE,
           state.initialLogsHeight - (event.clientY - state.startY),
         );
         setLogsHeight(nextHeight);
@@ -447,8 +449,8 @@ function App() {
         return;
       }
 
-      const minSidebarSpace = isProjectTreeCollapsed ? COLLAPSED_THICKNESS : MIN_PANEL_SIZE;
-      const minPreviewSpace = isPreviewCollapsed ? COLLAPSED_THICKNESS : MIN_PANEL_SIZE;
+      const minSidebarSpace = isProjectTreeCollapsed ? COLLAPSED_THICKNESS : MIN_TREE_PANEL_SIZE;
+      const minPreviewSpace = isPreviewCollapsed ? COLLAPSED_THICKNESS : MIN_PREVIEW_PANEL_SIZE;
       const minimumRequiredWidth = minSidebarSpace + minPreviewSpace;
 
       if (availableWidth < minimumRequiredWidth) {
@@ -555,7 +557,7 @@ function App() {
 
   function toggleProjectTree() {
     if (isProjectTreeCollapsed) {
-      setSidebarWidth(Math.max(MIN_PANEL_SIZE, previousSidebarWidth));
+      setSidebarWidth(Math.max(MIN_TREE_PANEL_SIZE, previousSidebarWidth));
       setIsProjectTreeCollapsed(false);
       return;
     }
@@ -564,7 +566,7 @@ function App() {
 
   function togglePreview() {
     if (isPreviewCollapsed) {
-      setPreviewWidth(Math.max(MIN_PANEL_SIZE, previousPreviewWidth));
+      setPreviewWidth(Math.max(MIN_PREVIEW_PANEL_SIZE, previousPreviewWidth));
       setIsPreviewCollapsed(false);
       return;
     }
@@ -573,7 +575,7 @@ function App() {
 
   function toggleLogs() {
     if (isLogsCollapsed) {
-      setLogsHeight(Math.max(MIN_PANEL_SIZE, previousLogsHeight));
+      setLogsHeight(Math.max(MIN_LOG_PANEL_SIZE, previousLogsHeight));
       setIsLogsCollapsed(false);
       return;
     }

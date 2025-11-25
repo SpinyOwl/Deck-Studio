@@ -8,6 +8,7 @@ import {useCardPreview} from './useCardPreview';
 interface Props {
   readonly collapsed: boolean;
   readonly project: Project | null;
+
   onChangeLocale?(locale: string): void;
 }
 
@@ -24,7 +25,6 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
     selectedCard,
     cardOptions,
     localeOptions,
-    hasLocalization,
     selectedLocale,
     safeSelectedCard,
     cardWidthPx,
@@ -53,8 +53,7 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
     <div className="panel__body">
       {!hasProject && (<div className="placeholder-text">Open a project to see a live card preview.</div>)}
       {hasProject && !hasCards && (<div className="placeholder-text">No cards found in the loaded project.</div>)}
-      {hasProject && hasCards && selectedCard && (<>
-        <CardPreviewViewport
+      {hasProject && hasCards && selectedCard && (<CardPreviewViewport
           cardWidthPx={cardWidthPx}
           cardHeightPx={cardHeightPx}
           zoom={zoom}
@@ -68,25 +67,24 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
           onPanStart={handlePanStart}
           onPanMove={handlePanMove}
           onPanEnd={handlePanEnd}
-        />
+        />)}
 
-        <CardPreviewToolbar
-          activeMode={activeToolbarButton}
-          hasLocalization={hasLocalization}
-          localeOptions={localeOptions}
-          selectedLocale={selectedLocale}
-          cardOptions={cardOptions}
-          selectedCard={safeSelectedCard}
-          onChangeLocale={(value) => {
-            onChangeLocale?.(value);
-          }}
-          onChangeCard={(value) => setSelectedCardValue(value)}
-          onResetZoom={handleResetZoom}
-          onZoomOut={handleZoomOut}
-          onZoomIn={handleZoomIn}
-          onFit={handleToggleFit}
-        />
-      </>)}
+
+      <CardPreviewToolbar
+        activeMode={activeToolbarButton}
+        localeOptions={localeOptions}
+        selectedLocale={selectedLocale}
+        cardOptions={cardOptions}
+        selectedCard={safeSelectedCard}
+        onChangeLocale={(value) => {
+          onChangeLocale?.(value);
+        }}
+        onChangeCard={(value) => setSelectedCardValue(value)}
+        onResetZoom={handleResetZoom}
+        onZoomOut={handleZoomOut}
+        onZoomIn={handleZoomIn}
+        onFit={handleToggleFit}
+      />
     </div>
   </section>);
 };

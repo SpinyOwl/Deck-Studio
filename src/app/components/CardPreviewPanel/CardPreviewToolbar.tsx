@@ -17,7 +17,6 @@ interface ToolbarSelectProps {
 
 interface CardPreviewToolbarProps {
   readonly activeMode: 'original' | 'zoom-in' | 'zoom-out' | 'fit';
-  readonly hasLocalization: boolean;
   readonly localeOptions: Array<{ value: string; label: string }>;
   readonly selectedLocale: string;
   readonly cardOptions: Array<{ value: string; label: string }>;
@@ -77,7 +76,6 @@ const ToolbarSelect: React.FC<ToolbarSelectProps> = ({placeholder, tooltip, opti
  */
 export const CardPreviewToolbar: React.FC<CardPreviewToolbarProps> = ({
   activeMode,
-  hasLocalization,
   localeOptions,
   selectedLocale,
   cardOptions,
@@ -89,6 +87,8 @@ export const CardPreviewToolbar: React.FC<CardPreviewToolbarProps> = ({
   onZoomIn,
   onFit,
 }) => (<div className="card-preview__toolbar" aria-label="Card preview toolbar">
+
+  <div className="row">
   <ToolbarButton
     icon="view_real_size"
     label="Original size"
@@ -108,14 +108,15 @@ export const CardPreviewToolbar: React.FC<CardPreviewToolbarProps> = ({
     active={activeMode === 'zoom-in'}
   />
   <ToolbarButton icon="fit_screen" label="Zoom to fit" onClick={onFit} active={activeMode === 'fit'} />
-
-  {hasLocalization && (<ToolbarSelect
+  </div>
+  <div className="row">
+  <ToolbarSelect
     placeholder="Language"
     tooltip="Language"
     options={localeOptions}
     value={selectedLocale}
     onChange={onChangeLocale}
-  />)}
+  />
 
   <ToolbarSelect
     placeholder="Card"
@@ -124,4 +125,5 @@ export const CardPreviewToolbar: React.FC<CardPreviewToolbarProps> = ({
     value={selectedCard}
     onChange={onChangeCard}
   />
+  </div>
 </div>);

@@ -8,7 +8,9 @@
     "build:react": "vite build --config src/vite.config.ts",
     "build": "npm run build:react",
     "dist": "npm run build && electron-builder",
-    "lint": "eslint --config src/eslint.config.js \"src/**/*.{ts,tsx}\""
+    "lint": "eslint --config src/eslint.config.js \"src/**/*.{ts,tsx}\"",
+    "pretest": "tsc -p tsconfig.test.json",
+    "test": "node --test dist-tests/**/*.test.js"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
