@@ -3,8 +3,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
     selectProjectFolder: () => ipcRenderer.invoke('select-project-folder'),
+    savePdfDialog: (defaultPath) => ipcRenderer.invoke('save-pdf-dialog', defaultPath),
     readFile: (filePath) => ipcRenderer.invoke('read-file', filePath),
     readBinaryFile: (filePath) => ipcRenderer.invoke('read-binary-file', filePath),
+    writeBinaryFile: (filePath, content) => ipcRenderer.invoke('write-binary-file', filePath, content),
     createFile: (filePath, content) => ipcRenderer.invoke('create-file', filePath, content),
     createDirectory: (directoryPath) => ipcRenderer.invoke('create-directory', directoryPath),
     renamePath: (currentPath, nextPath) => ipcRenderer.invoke('rename-path', currentPath, nextPath),

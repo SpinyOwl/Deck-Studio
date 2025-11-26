@@ -8,6 +8,7 @@ import {useCardPreview} from './useCardPreview';
 interface Props {
   readonly collapsed: boolean;
   readonly project: Project | null;
+  readonly exportProgress: number | null;
 
   onChangeLocale?(locale: string): void;
 }
@@ -18,7 +19,7 @@ interface Props {
  * @param props - Panel configuration and callbacks.
  * @returns Card preview panel element.
  */
-export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeLocale}) => {
+export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, exportProgress, onChangeLocale}) => {
   const {
     hasProject,
     hasCards,
@@ -51,6 +52,11 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, onChangeL
   return (<section className={`card-preview panel ${collapsed ? 'panel--collapsed' : 'panel--expanded'}`}>
     <div className="panel__header">Card preview</div>
     <div className="panel__body">
+      {exportProgress !== null && (
+        <div className="card-preview__progress-bar">
+          <div className="card-preview__progress-bar-fill" style={{ width: `${exportProgress * 100}%` }}></div>
+        </div>
+      )}
       {!hasProject && (<div className="placeholder-text">Open a project to see a live card preview.</div>)}
       {hasProject && !hasCards && (<div className="placeholder-text">No cards found in the loaded project.</div>)}
       {hasProject && hasCards && selectedCard && (<CardPreviewViewport

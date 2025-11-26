@@ -1,8 +1,8 @@
 // electron/main.js
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
-const path = require('path');
-const { pathToFileURL } = require('url');
-const fs = require('fs');
+const path = require('node:path');
+const { pathToFileURL } = require('node:url');
+const fs = require('node:fs');
 
 const fsPromises = fs.promises;
 const IMAGE_MIME_BY_EXTENSION = new Map([
@@ -419,12 +419,12 @@ app.on('window-all-closed', () => {
 
 // ---- Project folder + FS helpers ----
 
-const IGNORED_DIRECTORIES = ['node_modules'];
+const IGNORED_DIRECTORIES = new Set(['node_modules']);
 const IGNORED_PREFIXES = ['.git'];
 const projectWatchers = new Map();
 
 function shouldIgnoreDirectory(name) {
-    return IGNORED_DIRECTORIES.includes(name) || IGNORED_PREFIXES.some(prefix => name.startsWith(prefix));
+    return IGNORED_DIRECTORIES.has(name) || IGNORED_PREFIXES.some(prefix => name.startsWith(prefix));
 }
 
 /**
@@ -563,6 +563,19 @@ ipcMain.handle('select-project-folder', async () => {
     return { rootPath, tree };
 });
 
+ipcMain.handle('save-pdf-dialog', async (_event, defaultPath) => {
+    const { canceled, filePath } = await dialog.showSaveDialog({
+        defaultPath,
+        filters: [{ name: 'PDF Documents', extensions: ['pdf'] }]
+    });
+
+    if (canceled) {
+        return null;
+    }
+
+    return filePath;
+});
+
 ipcMain.handle('load-project-folder', async (_event, rootPath) => {
     if (!rootPath) return null;
 
@@ -593,6 +606,11 @@ ipcMain.handle('read-binary-file', async (_event, filePath) => {
     const buffer = await fsPromises.readFile(filePath);
 
     return buffer.toString('base64');
+});
+
+ipcMain.handle('write-binary-file', async (_event, filePath, content) => {
+    await fsPromises.writeFile(filePath, content, 'base64');
+    return true;
 });
 
 ipcMain.handle('write-file', async (_event, filePath, content) => {

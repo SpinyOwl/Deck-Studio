@@ -139,7 +139,7 @@ export class TemplateRenderer {
    * @param rootPath - Absolute path to the project root used to resolve relative assets.
    * @returns Resolved card metadata and HTML, or null when no template is available.
    */
-  private async resolveCardTemplate(
+  async resolveCardTemplate(
     card: CardRecord,
     index: number,
     templates: ProjectTemplates,

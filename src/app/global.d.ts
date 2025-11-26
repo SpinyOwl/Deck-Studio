@@ -10,8 +10,10 @@ declare global {
   interface Window {
     api: {
       selectProjectFolder(): Promise<{ rootPath: string; tree: FileNode[] } | null>;
+      savePdfDialog(defaultPath: string): Promise<string | null>;
       readFile(path: string): Promise<string>;
       readBinaryFile(path: string): Promise<string>;
+      writeBinaryFile(path: string, content: string): Promise<boolean>;
       createFile(path: string, content?: string): Promise<boolean>;
       createDirectory(path: string): Promise<boolean>;
       renamePath(currentPath: string, nextPath: string): Promise<boolean>;

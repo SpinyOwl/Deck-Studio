@@ -52,7 +52,7 @@ export function SettingsModal({
         </header>
 
         <div className="settings-editor__body">
-          <MonacoEditorPane path={path || 'settings.yml'} value={content} onChange={onChange} />
+          <MonacoEditorPane path={path || 'settings.yml'} value={content} onChange={onChange} onSave={onSave} />
         </div>
 
         {error ? <p className="settings-editor__error">{error}</p> : null}

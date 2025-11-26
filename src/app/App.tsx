@@ -31,6 +31,7 @@ import {
 import {type CsvGrid, normalizeCsvGrid, parseCsvGrid, stringifyCsvGrid} from './utils/csv';
 import './styles/AppLayout.css';
 import './styles/Panel.css';
+import { pdfExportService } from './services/PdfExportService';
 
 const MIN_TREE_PANEL_SIZE = 150;
 const MIN_PREVIEW_PANEL_SIZE = 250;
@@ -196,6 +197,7 @@ function App() {
   const [autosaveSettings, setAutosaveSettings] = useState<AutosaveSettings>(
     DEFAULT_AUTOSAVE_SETTINGS,
   );
+  const [exportProgress, setExportProgress] = useState<number | null>(null);
 
   type DragTarget = 'sidebar' | 'preview' | 'logs';
   const dragState = useRef<{
@@ -318,7 +320,7 @@ function App() {
       }
     }
 
-    const unsubscribe = window.api.onProjectFolderChanged(async changedRootPath => {
+    const unsubscribe = window.api.onProjectFolderChanged(async (changedRootPath: any) => {
       if (changedRootPath !== rootPath) {
         return;
       }
@@ -606,7 +608,7 @@ function App() {
       logService.add('No card-deck-project.yml found in the selected project.', 'warning');
     }
 
-    if (nextProject.cards !== null) {
+    if (nextProject.cards) {
       logService.add(`Loaded ${nextProject.cards.length} cards from cards.csv.`);
     } else {
       logService.add('No cards.csv found in the selected project.', 'warning');
@@ -638,6 +640,16 @@ function App() {
    */
   function handleCreateProject() {
     logService.add('Create project is not implemented yet.', 'warning');
+  }
+
+  async function handleExport() {
+    if (project) {
+      setExportProgress(0);
+      await pdfExportService.exportToPdf(project, (progress) => {
+        setExportProgress(progress);
+      });
+      setExportProgress(null);
+    }
   }
 
   /**
@@ -921,12 +933,12 @@ function App() {
         await fileService.saveTextFile(file.path, serializeOpenFile(file));
       }
 
-      const savedPaths = dirtyFiles.map(file => file.path);
+      const savedPaths = new Set(dirtyFiles.map(file => file.path));
       const savedNames = dirtyFiles.map(file => file.name).join(', ');
 
       setOpenFiles(prev => {
         const nextFiles = prev.map(file => {
-          if (!savedPaths.includes(file.path) || !isEditableFile(file)) {
+          if (!savedPaths.has(file.path) || !isEditableFile(file)) {
             return file;
           }
 
@@ -1129,11 +1141,22 @@ function App() {
             type="button"
             className="toolbar__icon-button"
             aria-label="Save file"
-            disabled={!activeFile || !activeFile.isDirty}
+            disabled={!activeFile?.isDirty}
             onClick={handleSave}
           >
             <span aria-hidden="true" className="material-symbols-outlined">
               save
+            </span>
+          </button>
+          <button
+            type="button"
+            className="toolbar__icon-button"
+            aria-label="Export to PDF"
+            disabled={!project?.resolvedCards.length}
+            onClick={handleExport}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined">
+              picture_as_pdf
             </span>
           </button>
           <button
@@ -1193,7 +1216,6 @@ function App() {
       <div
         className="resize-handle resize-handle--vertical resize-handle--sidebar"
         data-state={isProjectTreeCollapsed ? 'disabled' : 'active'}
-        role="separator"
         aria-label="Resize project tree"
         aria-orientation="vertical"
         aria-disabled={isProjectTreeCollapsed}
@@ -1215,12 +1237,12 @@ function App() {
         collapsed={isPreviewCollapsed}
         project={project}
         onChangeLocale={handleChangeLocale}
+        exportProgress={exportProgress}
       />
 
       <div
         className="resize-handle resize-handle--vertical resize-handle--preview"
         data-state={isPreviewCollapsed ? 'disabled' : 'active'}
-        role="separator"
         aria-label="Resize card preview"
         aria-orientation="vertical"
         aria-disabled={isPreviewCollapsed}
@@ -1230,7 +1252,6 @@ function App() {
       <div
         className="resize-handle resize-handle--horizontal resize-handle--logs"
         data-state={isLogsCollapsed ? 'disabled' : 'active'}
-        role="separator"
         aria-label="Resize logs panel"
         aria-orientation="horizontal"
         aria-disabled={isLogsCollapsed}

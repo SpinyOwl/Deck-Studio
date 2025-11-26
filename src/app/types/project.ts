@@ -9,11 +9,20 @@ export interface CardRecord {
 }
 
 /**
+ * Describes the configuration for the dashed border around exported cards.
+ */
+export interface PdfBorderConfig {
+  thickness?: number;
+  color?: string;
+}
+
+/**
  * Describes PDF export configuration including page size and orientation.
  */
 export interface PdfExportConfig {
   pageSize?: string;
   orientation?: 'portrait' | 'landscape';
+  border?: PdfBorderConfig;
 }
 
 /**
