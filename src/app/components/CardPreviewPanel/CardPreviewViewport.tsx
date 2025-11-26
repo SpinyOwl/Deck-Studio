@@ -10,7 +10,7 @@ interface CardPreviewViewportProps {
   readonly scaledWidth: number;
   readonly scaledHeight: number;
   readonly isPanning: boolean;
-  readonly viewportRef: React.RefObject<HTMLDivElement>;
+  readonly viewportRef: React.RefObject<HTMLDivElement | null>;
   onPanStart(event: React.PointerEvent<HTMLDivElement>): void;
   onPanMove(event: React.PointerEvent<HTMLDivElement>): void;
   onPanEnd(): void;

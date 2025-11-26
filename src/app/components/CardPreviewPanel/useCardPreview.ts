@@ -42,7 +42,7 @@ interface CardPreviewControls {
   scaledHeight: number;
   isPanning: boolean;
   activeToolbarButton: 'original' | 'zoom-in' | 'zoom-out' | 'fit';
-  viewportRef: React.RefObject<HTMLDivElement>;
+  viewportRef: React.RefObject<HTMLDivElement | null>;
   handleResetZoom(): void;
   handleZoomOut(): void;
   handleZoomIn(): void;
