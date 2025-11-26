@@ -39,12 +39,12 @@ export class LocalizationService {
     try {
       const content = await this.files.readTextFile(localizationPath);
       const messages = this.yamlParser.parse<LocalizationMessages>(content);
-      logService.add(`Loaded localization for locale "${locale}" from ${localizationPath}`);
+      logService.info(`Loaded localization for locale "${locale}" from ${localizationPath}`);
 
       return {locale, messages, availableLocales};
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      logService.add(`Failed to load localization from ${localizationPath}: ${reason}`, 'warning');
+      logService.warning(`Failed to load localization from ${localizationPath}: ${reason}`);
 
       return null;
     }
