@@ -18,6 +18,8 @@ contextBridge.exposeInMainWorld('api', {
     loadProjectFolder: (rootPath) => ipcRenderer.invoke('load-project-folder', rootPath),
     watchProjectFolder: (rootPath) => ipcRenderer.invoke('watch-project-folder', rootPath),
     resolveAssetUrl: (rootPath, relativePath) => ipcRenderer.invoke('resolve-asset-url', rootPath, relativePath),
+    showDirectoryPicker: () => ipcRenderer.invoke('show-directory-picker'),
+    copyTemplateProject: (destinationPath) => ipcRenderer.invoke('copy-template-project', destinationPath),
     onProjectFolderChanged: (callback) => {
         const subscription = (_event, payload) => callback(payload);
         ipcRenderer.on('project-folder-changed', subscription);

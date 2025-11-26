@@ -637,10 +637,65 @@ function App() {
   }
 
   /**
-   * Placeholder for creating a new project.
+   * Handles creating a new project.
+   * It asks the user to select a folder for a new project.
+   * If there is no such folder, it should be created.
+   * When the folder for the new project exists, the application should copy
+   * the content of the `new_project` folder to it and then open the project.
    */
-  function handleCreateProject() {
-    logService.add('Create project is not implemented yet.', 'warning');
+  async function handleCreateProject() {
+    logService.info('Attempting to create a new project...');
+    try {
+      // 1. Ask user to select a folder for a new project.
+      const selectedDirectoryPath = await window.api.showDirectoryPicker();
+
+      if (!selectedDirectoryPath) {
+        logService.warning('Project creation cancelled: No directory selected.');
+        return;
+      }
+
+      logService.info(`Selected directory for new project: ${selectedDirectoryPath}`);
+
+      // 2. If there is no such folder - folder should be created.
+      // We assume window.api.copyTemplateProject will handle directory creation if needed.
+
+      // 3. Copy content of `new_project` folder to it.
+      await window.api.copyTemplateProject(selectedDirectoryPath);
+      logService.info(`Copied new project template to ${selectedDirectoryPath}`);
+
+      // 4. Open the project.
+      // Using projectService.reloadProject to load the project from the selected path.
+      // For a new project, there's no existing locale, so we pass undefined.
+      const nextProject = await projectService.reloadProject(selectedDirectoryPath, undefined);
+
+      if (!nextProject) {
+        logService.error(`Failed to load the newly created project at ${selectedDirectoryPath}.`);
+        return;
+      }
+
+      setProject(nextProject);
+      setOpenFiles([]);
+      setActiveFilePath(null);
+      logService.info(`Successfully created and loaded new project at ${nextProject.rootPath}`);
+
+      if (nextProject.config) {
+        logService.info(
+          `Parsed ${nextProject.configPath}: ${JSON.stringify(nextProject.config, null, 2)}`,
+        );
+      } else {
+        logService.warning('No card-deck-project.yml found in the new project.');
+      }
+
+      if (nextProject.cards) {
+        logService.info(`Loaded ${nextProject.cards.length} cards from cards.csv.`);
+      } else {
+        logService.warning('No cards.csv found in the new project.');
+      }
+
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      logService.error(`Error creating new project: ${reason}`);
+    }
   }
 
   async function handleExport() {

@@ -225,17 +225,32 @@ export class TemplateRenderer {
    * @returns HTML with relative links replaced by project-scoped asset URLs.
    */
   private async resolveRelativeLinks(html: string, rootPath: string): Promise<string> {
-    const attributePattern = /(\b(?:src|href))=(["'])([^'"\s>]+)\2/gi;
+    // Combined pattern for src/href attributes and url() in CSS
+    const combinedPattern = /(?:(\b(?:src|href))=(["'])([^'"\s>]+)\2)|(?:url\((['"]?)([^)'"]+)\4\))/gi;
     const segments: string[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
 
-    while ((match = attributePattern.exec(html)) !== null) {
-      const [fullMatch, attribute, quote, value] = match;
-      const resolved = await this.resolveLocalAssetPath(value, rootPath);
-      const replacement = resolved ? `${attribute}=${quote}${resolved}${quote}` : fullMatch;
+    while ((match = combinedPattern.exec(html)) !== null) {
+      const [fullMatch, attrName, attrQuote, attrValue, urlQuote, urlValue] = match;
+      let resolved: string | null = null;
+      let replacement: string = fullMatch;
 
       segments.push(html.slice(lastIndex, match.index));
+
+      if (attrName && attrValue) { // It's a src/href attribute
+        resolved = await this.resolveLocalAssetPath(attrValue, rootPath);
+        if (resolved) {
+          replacement = `${attrName}=${attrQuote}${resolved}${attrQuote}`;
+        }
+      } else if (urlValue) { // It's a url() in CSS
+        resolved = await this.resolveLocalAssetPath(urlValue, rootPath);
+        if (resolved) {
+          replacement = `url(${urlQuote}${resolved}${urlQuote})`;
+        }
+      }
+      // If resolved is null, replacement remains fullMatch, so no change.
+
       segments.push(replacement);
       lastIndex = match.index + fullMatch.length;
     }

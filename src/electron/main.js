@@ -91,6 +91,9 @@ editor:
 recentProjects: []
 `;
 
+// Define the template project path
+const TEMPLATE_PROJECT_PATH = path.join(__dirname, 'new_project');
+
 /**
  * Builds the path to the settings directory and file using the user's app data folder.
  * This ensures the path resolves to "%USERPROFILE%/AppData/Roaming/SpinyOwl.DeckStudio" on Windows
@@ -552,6 +555,41 @@ async function buildTree(dir) {
     });
 }
 
+/**
+ * Recursively copies a directory from source to destination, skipping existing files.
+ *
+ * @param {string} src - Source directory path.
+ * @param {string} dest - Destination directory path.
+ * @returns {Promise<void>}
+ */
+async function copyDirectoryRecursive(src, dest) {
+    await fsPromises.mkdir(dest, { recursive: true });
+    const entries = await fsPromises.readdir(src, { withFileTypes: true });
+
+    for (const entry of entries) {
+        const srcPath = path.join(src, entry.name);
+        const destPath = path.join(dest, entry.name);
+
+        if (entry.isDirectory()) {
+            await copyDirectoryRecursive(srcPath, destPath);
+        } else {
+            try {
+                await fsPromises.access(destPath, fs.constants.F_OK);
+                // File exists, skip copying
+                console.log(`Skipping existing file: ${destPath}`);
+            } catch (error) {
+                if (error.code === 'ENOENT') {
+                    // File does not exist, proceed with copying
+                    await fsPromises.copyFile(srcPath, destPath);
+                } else {
+                    // Other error, rethrow
+                    throw error;
+                }
+            }
+        }
+    }
+}
+
 ipcMain.handle('select-project-folder', async () => {
     const res = await dialog.showOpenDialog({
         properties: ['openDirectory']
@@ -650,4 +688,30 @@ ipcMain.handle('load-layout-state', async () => {
 
 ipcMain.handle('save-layout-state', async (_event, partialLayout) => {
     return saveLayoutState(partialLayout ?? {});
+});
+
+ipcMain.handle('show-directory-picker', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+        properties: ['openDirectory']
+    });
+
+    if (canceled || filePaths.length === 0) {
+        return null;
+    }
+
+    return filePaths[0];
+});
+
+ipcMain.handle('copy-template-project', async (_event, destinationPath) => {
+    if (!destinationPath) {
+        throw new Error('Destination path is required to copy the template project.');
+    }
+
+    try {
+        await copyDirectoryRecursive(TEMPLATE_PROJECT_PATH, destinationPath);
+        return true;
+    } catch (error) {
+        console.error('Failed to copy template project:', error);
+        throw error;
+    }
 });
