@@ -26,6 +26,7 @@ declare global {
       watchProjectFolder(rootPath: string): Promise<boolean>;
       resolveAssetUrl(rootPath: string, relativePath: string): Promise<string | null>;
       onProjectFolderChanged(callback: (rootPath: string) => void): () => void;
+      showWarning(message: string): Promise<void>;
     };
   }
 

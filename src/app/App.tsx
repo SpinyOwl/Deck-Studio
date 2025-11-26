@@ -32,6 +32,7 @@ import {type CsvGrid, normalizeCsvGrid, parseCsvGrid, stringifyCsvGrid} from './
 import './styles/AppLayout.css';
 import './styles/Panel.css';
 import { pdfExportService } from './services/PdfExportService';
+import { NotificationPopup } from './components/NotificationPopup/NotificationPopup';
 
 const MIN_TREE_PANEL_SIZE = 150;
 const MIN_PREVIEW_PANEL_SIZE = 250;
@@ -767,7 +768,7 @@ function App() {
   /**
    * Renames a file or folder and synchronizes open tabs and project tree state.
    *
-   * @param currentPath - Existing absolute path of the entry.
+   * @param currentPath - Existing absolute path of the entry to rename.
    * @param nextName - New name to apply within the same parent directory.
    */
   async function handleRenameEntry(currentPath: string, nextName: string): Promise<void> {
@@ -1286,6 +1287,7 @@ function App() {
         onClose={handleCloseSettings}
         onSave={handleSaveSettings}
       />
+      <NotificationPopup />
     </div>
   );
 }

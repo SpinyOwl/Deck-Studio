@@ -4,6 +4,7 @@ import {type CardRecord, type ProjectConfig} from '../types/project';
 import {CARDS_FILENAME, CsvParser, csvParser} from './CsvParser';
 import {fileService, FileService} from './FileService';
 import {logService} from './LogService';
+import {notificationService} from './NotificationService'; // Import the new service
 import {yamlParsingService, YamlParsingService} from './YamlParsingService';
 import {PROJECT_CONFIG_FILENAME} from '../constants/project';
 
@@ -22,7 +23,9 @@ export class ProjectLoader {
     logService.add(`validating ${folder.rootPath}`, 'info')
     let validProjectFolder = folder.tree.some(node => node.type === 'file' && node.name === PROJECT_CONFIG_FILENAME);
     if (!validProjectFolder) {
-      logService.add(`The selected folder is not a valid project. Missing ${PROJECT_CONFIG_FILENAME}.`, 'warning');
+      const message = `The selected folder is not a valid project. Missing ${PROJECT_CONFIG_FILENAME}.`;
+      logService.add(message, 'warning');
+      notificationService.showWarning(message); // Use the new notification service
       return false;
     }
     return true;
@@ -37,6 +40,9 @@ export class ProjectLoader {
     const selection = await window.api.selectProjectFolder();
 
     if (!selection) {
+      const message = 'Project selection cancelled or failed.';
+      logService.add(message, 'warning');
+      notificationService.showWarning(message); // Use the new notification service
       return null;
     }
     logService.add(`Opening ${selection.rootPath}`, 'info')
@@ -56,15 +62,17 @@ export class ProjectLoader {
    */
   public async loadProjectFolder(rootPath: string): Promise<{ rootPath: string; tree: FileNode[] } | null> {
     if (!rootPath?.trim()) {
-      logService.add('Cannot reload a project without a valid root path.', 'warning');
-
+      const message = 'Cannot reload a project without a valid root path.';
+      logService.add(message, 'warning');
+      notificationService.showWarning(message); // Use the new notification service
       return null;
     }
 
     const selection = await window.api.loadProjectFolder(rootPath);
     if (!selection) {
-      logService.add(`Unable to reload project at ${rootPath}. It may have been removed.`, 'error');
-
+      const message = `Unable to reload project at ${rootPath}. It may have been removed.`;
+      logService.add(message, 'error');
+      notificationService.showError(message); // Use the new notification service, changed to showError
       return null;
     }
 
