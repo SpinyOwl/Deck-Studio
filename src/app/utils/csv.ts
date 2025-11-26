@@ -58,7 +58,7 @@ export function stringifyCsvGrid(data: CsvGrid): string {
   let result = '';
 
   for (let i = 0; i < data.length; i++) {
-    let element = data[i];
+    const element = data[i];
     for (let j = 0; j < element.length; j++) {
       result += element[j];
       if (j < element.length - 1) result += ',';

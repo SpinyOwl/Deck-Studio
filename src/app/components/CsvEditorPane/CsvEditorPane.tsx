@@ -20,7 +20,7 @@ interface Props {
  * @returns CSV editor pane with keyboard shortcuts and change tracking.
  */
 export const CsvEditorPane: React.FC<Props> = ({data, onChange, onSave, fileName}) => {
-  let activeTableRef: React.Ref<ActiveTableCore> = React.useRef(null);
+  const activeTableRef = React.useRef<ActiveTableCore | null>(null);
   React.useEffect(() => {
     if (activeTableRef.current) {
       activeTableRef.current.data = data;
@@ -56,7 +56,7 @@ export const CsvEditorPane: React.FC<Props> = ({data, onChange, onSave, fileName
     table.addEventListener('at-data-change', handleCustomEvent as EventListener);
     table.addEventListener('keydown', handleKeyDown);
 
-    let overflow = table._overflow;
+    const overflow = table._overflow;
     if (overflow) overflow.overflowContainer.style.height = "100%";
 
     return () => {
