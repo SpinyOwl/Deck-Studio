@@ -18,6 +18,16 @@ export class ProjectLoader {
   ) {
   }
 
+  private async validateProjectFolder(folder: { rootPath: string; tree: FileNode[] }): Promise<boolean> {
+    logService.add(`validating ${folder.rootPath}`, 'info')
+    let validProjectFolder = folder.tree.some(node => node.type === 'file' && node.name === PROJECT_CONFIG_FILENAME);
+    if (!validProjectFolder) {
+      logService.add(`The selected folder is not a valid project. Missing ${PROJECT_CONFIG_FILENAME}.`, 'warning');
+      return false;
+    }
+    return true;
+  }
+
   /**
    * Opens a native picker dialog to select a project directory.
    *
@@ -26,7 +36,16 @@ export class ProjectLoader {
   public async selectProjectFolder(): Promise<{ rootPath: string; tree: FileNode[] } | null> {
     const selection = await window.api.selectProjectFolder();
 
-    return selection ?? null;
+    if (!selection) {
+      return null;
+    }
+    logService.add(`Opening ${selection.rootPath}`, 'info')
+
+    if (!(await this.validateProjectFolder(selection))) {
+      return null;
+    }
+
+    return selection;
   }
 
   /**
@@ -36,7 +55,7 @@ export class ProjectLoader {
    * @returns Project root selection when available; otherwise null.
    */
   public async loadProjectFolder(rootPath: string): Promise<{ rootPath: string; tree: FileNode[] } | null> {
-    if (!rootPath || !rootPath.trim()) {
+    if (!rootPath?.trim()) {
       logService.add('Cannot reload a project without a valid root path.', 'warning');
 
       return null;
@@ -46,6 +65,10 @@ export class ProjectLoader {
     if (!selection) {
       logService.add(`Unable to reload project at ${rootPath}. It may have been removed.`, 'error');
 
+      return null;
+    }
+
+    if (!(await this.validateProjectFolder(selection))) {
       return null;
     }
 

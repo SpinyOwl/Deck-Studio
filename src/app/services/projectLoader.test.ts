@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
-import {describe, test} from 'node:test';
+import {describe, test, mock} from 'node:test';
 import {PROJECT_CONFIG_FILENAME} from '../constants/project';
 import {type FileService} from './FileService';
 import {ProjectLoader} from './projectLoader';
 import {type CsvParser} from './CsvParser';
 import {type YamlParsingService} from './YamlParsingService';
+import {logService} from './LogService';
 
 const createLoader = (options: {
   files?: Partial<FileService>;
@@ -68,5 +69,39 @@ describe('ProjectLoader', () => {
     const cards = await loader.loadProjectCards('/projects/demo');
 
     assert.deepEqual(cards, [{id: '1', template: 'card.html'}]);
+  });
+
+  describe('folder selection and loading', () => {
+    test('stops loading when project file is missing', async () => {
+      const loader = createLoader({
+        files: {
+          readTextFile: async () => {
+            throw new Error('File not found');
+          },
+        },
+      });
+
+      const logSpy = mock.method(logService, 'add');
+      const selection = await loader.selectProjectFolder();
+
+      assert.equal(selection, null);
+      assert.equal(logSpy.mock.callCount(), 1);
+    });
+
+    test('stops reloading when project file is missing', async () => {
+      const loader = createLoader({
+        files: {
+          readTextFile: async () => {
+            throw new Error('File not found');
+          },
+        },
+      });
+
+      const logSpy = mock.method(logService, 'add');
+      const selection = await loader.loadProjectFolder('/projects/demo');
+
+      assert.equal(selection, null);
+      assert.equal(logSpy.mock.callCount(), 1);
+    });
   });
 });
