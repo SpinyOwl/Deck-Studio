@@ -89,7 +89,22 @@ export const FileTree: React.FC<Props> = ({ nodes, selectedPath, onSelectFile, o
   const [dropTargetPath, setDropTargetPath] = useState<string | null>(null);
 
   useEffect(() => {
-    setExpandedPaths(collectDirectoryPaths(nodes));
+    setExpandedPaths(prev => {
+      const directories = collectDirectoryPaths(nodes);
+
+      if (prev.size === 0) {
+        return directories;
+      }
+
+      const next = new Set<string>();
+      prev.forEach(path => {
+        if (directories.has(path)) {
+          next.add(path);
+        }
+      });
+
+      return next;
+    });
   }, [nodes]);
 
   const toggleDirectory = (path: string) => {
