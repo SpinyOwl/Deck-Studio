@@ -21,8 +21,9 @@ export interface PdfBorderConfig {
  */
 export interface PdfExportConfig {
   pageSize?: string;
-  orientation?: 'portrait' | 'landscape';
+  orientation?: "p" | "portrait" | "l" | "landscape";
   border?: PdfBorderConfig;
+  margin?: number
 }
 
 /**

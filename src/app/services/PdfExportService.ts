@@ -32,7 +32,8 @@ class PdfExportService {
     const pageDimensions = doc.internal.pageSize;
     const pageHeight = pageDimensions.height;
     const pageWidth = pageDimensions.width;
-    const margin = 10;
+    const margin = (pdfConfig?.margin ?? 0) + (borderThickness * 2);
+
     let x = margin;
     let y = margin;
 
