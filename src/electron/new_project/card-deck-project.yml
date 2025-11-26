@@ -1,0 +1,26 @@
+project:
+  id: test-deck
+  name: deck
+  version: 11
+
+paths:
+  csv: cards.csv
+
+layout:
+  width: 375
+  height: 525
+
+export:
+  dpi: 300
+  pdf: 
+    pageSize: "A4"
+    orientation: "portrait"
+    border:
+      thickness: 0.1
+      color: "#999999"
+
+defaults:
+  template: templates/default.html
+
+csv:
+  templateColumn: template

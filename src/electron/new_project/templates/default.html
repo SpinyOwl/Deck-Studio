@@ -1,0 +1,51 @@
+<style>
+    .card {
+        font-size: 4vh;
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+
+        border-radius: 4.8%;
+
+        border: 1vh solid #032600;
+
+        background: linear-gradient(
+                145deg,
+                #155510 0%,
+                #37bd2d 45%,
+                #7aed72 100%
+        );
+        color: #fefefe;
+        font-family: 'Segoe UI', sans-serif;
+        overflow: hidden;
+
+        /* padding 4px/8px */
+        padding: 1.07% 2.13%;
+
+        /* shadow: 0 14px 25px */
+        box-shadow: 0 3vh 6vh rgba(0,0,0,0.35);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .card h1 {
+        color: #000;
+        font-size: 1.5em;
+        margin: 0 0 0.8em;
+    }
+
+    .card p {
+        font-size: 1em;
+        line-height: 1.4;
+        margin: 0 0 0.6em;
+    }
+</style>
+
+<div class="card">
+  <h1>{{ t:card.Name }}</h1>
+  <p>{{ t:card.Description }}</p>
+  <p>{{ t:common.cost }}: {{ Cost }}</p>
+  <p>{{ t:common.cardNumber }} {{ index1 }}</p>
+</div>

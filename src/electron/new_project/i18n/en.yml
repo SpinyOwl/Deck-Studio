@@ -1,0 +1,15 @@
+columns:
+  Name: "Name"
+  Info: "Info"
+
+common:
+  cost: "Cost"
+  cardNumber: "Card #"
+
+cards:
+  FIREBALL:
+    Name: "Fireball X"
+    Info: "Deal {{attack}} damage"
+  HEAL:
+    Name: "Heal"
+    Info: "Restore 3 HP"
