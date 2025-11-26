@@ -14,7 +14,7 @@ describe('TemplateRenderer', () => {
   } as Partial<FileService> as FileService;
   const renderer = new TemplateRenderer(files);
   const originalWindow = globalThis.window;
-  const originalLog = logService.add;
+  const originalLog = logService.info;
 
   before(() => {
     globalThis.window = {
@@ -22,12 +22,12 @@ describe('TemplateRenderer', () => {
         resolveAssetUrl: async (rootPath: string, relative: string) => `${rootPath}/${relative}`,
       },
     } as unknown as typeof globalThis.window;
-    logService.add = () => undefined;
+    logService.info = () => undefined;
   });
 
   after(() => {
     globalThis.window = originalWindow as typeof globalThis.window;
-    logService.add = originalLog;
+    logService.info = originalLog;
   });
 
   test('loads templates from disk and caches them', async () => {

@@ -1,5 +1,5 @@
 // src/components/LogsPanel/LogsPanel.tsx
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react';
 import { logService, type LogEntry } from '../../services/LogService';
 import './LogsPanel.css';
 
@@ -103,7 +103,7 @@ export const LogsPanel: React.FC<Props> = ({ collapsed }) => {
     };
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = scrollContainerRef.current;
     if (!container || !isAtBottom) return;
 

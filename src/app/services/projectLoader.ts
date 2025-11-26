@@ -20,11 +20,11 @@ export class ProjectLoader {
   }
 
   private async validateProjectFolder(folder: { rootPath: string; tree: FileNode[] }): Promise<boolean> {
-    logService.add(`validating ${folder.rootPath}`, 'info')
+    logService.info(`validating ${folder.rootPath}`)
     let validProjectFolder = folder.tree.some(node => node.type === 'file' && node.name === PROJECT_CONFIG_FILENAME);
     if (!validProjectFolder) {
       const message = `The selected folder is not a valid project. Missing ${PROJECT_CONFIG_FILENAME}.`;
-      logService.add(message, 'warning');
+      logService.warning(message);
       notificationService.showWarning(message); // Use the new notification service
       return false;
     }
@@ -41,11 +41,11 @@ export class ProjectLoader {
 
     if (!selection) {
       const message = 'Project selection cancelled or failed.';
-      logService.add(message, 'warning');
+      logService.warning(message);
       notificationService.showWarning(message); // Use the new notification service
       return null;
     }
-    logService.add(`Opening ${selection.rootPath}`, 'info')
+    logService.info(`Opening ${selection.rootPath}`)
 
     if (!(await this.validateProjectFolder(selection))) {
       return null;
@@ -63,7 +63,7 @@ export class ProjectLoader {
   public async loadProjectFolder(rootPath: string): Promise<{ rootPath: string; tree: FileNode[] } | null> {
     if (!rootPath?.trim()) {
       const message = 'Cannot reload a project without a valid root path.';
-      logService.add(message, 'warning');
+      logService.warning(message);
       notificationService.showWarning(message); // Use the new notification service
       return null;
     }
@@ -71,7 +71,7 @@ export class ProjectLoader {
     const selection = await window.api.loadProjectFolder(rootPath);
     if (!selection) {
       const message = `Unable to reload project at ${rootPath}. It may have been removed.`;
-      logService.add(message, 'error');
+      logService.error(message);
       notificationService.showError(message); // Use the new notification service, changed to showError
       return null;
     }
@@ -122,7 +122,7 @@ export class ProjectLoader {
       return this.yamlParser.parse<ProjectConfig>(content);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      logService.add(`Failed to load ${PROJECT_CONFIG_FILENAME}: ${reason}`, 'warning');
+      logService.warning(`Failed to load ${PROJECT_CONFIG_FILENAME}: ${reason}`);
 
       return null;
     }
@@ -142,7 +142,7 @@ export class ProjectLoader {
       return this.csvParser.parse(content);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      logService.add(`Failed to load ${CARDS_FILENAME}: ${reason}`, 'warning');
+      logService.warning(`Failed to load ${CARDS_FILENAME}: ${reason}`);
 
       return null;
     }

@@ -105,7 +105,7 @@ function parseAutosaveSettings(yamlText: string): AutosaveSettings {
     return normalizeAutosaveSettings(settings.autosave);
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    logService.add(`Unable to parse settings. Using default autosave values. (${reason})`, 'warning');
+    logService.warning(`Unable to parse settings. Using default autosave values. (${reason})`);
 
     return DEFAULT_AUTOSAVE_SETTINGS;
   }
@@ -133,7 +133,7 @@ function getImageMimeType(path: string): string {
   const lowerPath = path.toLowerCase();
 
   if (lowerPath.endsWith('.png')) return 'image/png';
-  if (lowerPath.endsWith('.jpg') || lowerPath.endsWith('.jpeg')) return 'image/jpeg';
+  if (lowerPath.endsWith('.jpg' ) || lowerPath.endsWith('.jpeg')) return 'image/jpeg';
   if (lowerPath.endsWith('.gif')) return 'image/gif';
   if (lowerPath.endsWith('.bmp')) return 'image/bmp';
   if (lowerPath.endsWith('.webp')) return 'image/webp';
@@ -254,7 +254,7 @@ function App() {
   }, [autosaveSettings, clearAutosaveTimer, project]);
 
   useEffect(() => {
-    logService.add('Deck Studio ready.');
+    logService.info('Deck Studio ready.');
   }, []);
 
   useEffect(() => {
@@ -266,7 +266,7 @@ function App() {
         setAutosaveSettings(parseAutosaveSettings(settings.content));
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        logService.add(`Unable to load settings. Using defaults. (${reason})`, 'warning');
+        logService.warning(`Unable to load settings. Using defaults. (${reason})`);
       }
     }
 
@@ -292,7 +292,7 @@ function App() {
         setIsLogsCollapsed(layout.panels.isLogsCollapsed);
       } catch (error) {
         console.error('Failed to hydrate layout state', error);
-        logService.add('Unable to restore saved layout. Using defaults.', 'warning');
+        logService.warning('Unable to restore saved layout. Using defaults.');
       } finally {
         layoutHydrated.current = true;
       }
@@ -313,11 +313,11 @@ function App() {
       try {
         const started = await window.api.watchProjectFolder(rootPath);
         if (!started) {
-          logService.add('Unable to start watching the project folder for changes.', 'warning');
+          logService.warning('Unable to start watching the project folder for changes.');
         }
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        logService.add(`Failed to watch project folder: ${reason}`, 'warning');
+        logService.warning(`Failed to watch project folder: ${reason}`);
       }
     }
 
@@ -326,7 +326,7 @@ function App() {
         return;
       }
 
-      logService.add('Detected changes in project files. Reloading project...');
+      logService.info('Detected changes in project files. Reloading project...');
       try {
         const reloaded = await projectService.reloadProject(changedRootPath, currentLocale);
         if (!reloaded) {
@@ -334,11 +334,11 @@ function App() {
         }
 
         setProject(current => (current?.rootPath === changedRootPath ? reloaded : current));
-        logService.add('Project reloaded after file system updates.');
+        logService.info('Project reloaded after file system updates.');
         void startWatchingProject();
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        logService.add(`Unable to reload project after detecting changes: ${reason}`, 'error');
+        logService.error(`Unable to reload project after detecting changes: ${reason}`);
       }
     });
 
@@ -526,7 +526,7 @@ function App() {
       })
       .catch(error => {
         console.error('Failed to persist layout state', error);
-        logService.add('Unable to save layout preferences.', 'error');
+        logService.error('Unable to save layout preferences.');
       });
   }, [
     sidebarWidth,
@@ -592,27 +592,27 @@ function App() {
   async function handleOpenProject() {
     const nextProject = await projectService.selectProject();
     if (!nextProject) {
-      logService.add('Project selection cancelled.', 'warning');
+      logService.warning('Project selection cancelled.');
       return;
     }
 
     setProject(nextProject);
     setOpenFiles([]);
     setActiveFilePath(null);
-    logService.add(`Loaded project at ${nextProject.rootPath}`);
+    logService.info(`Loaded project at ${nextProject.rootPath}`);
 
     if (nextProject.config) {
-      logService.add(
+      logService.info(
         `Parsed ${nextProject.configPath}: ${JSON.stringify(nextProject.config, null, 2)}`,
       );
     } else {
-      logService.add('No card-deck-project.yml found in the selected project.', 'warning');
+      logService.warning('No card-deck-project.yml found in the selected project.');
     }
 
     if (nextProject.cards) {
-      logService.add(`Loaded ${nextProject.cards.length} cards from cards.csv.`);
+      logService.info(`Loaded ${nextProject.cards.length} cards from cards.csv.`);
     } else {
-      logService.add('No cards.csv found in the selected project.', 'warning');
+      logService.warning('No cards.csv found in the selected project.');
     }
   }
 
@@ -629,10 +629,10 @@ function App() {
     try {
       const updatedProject = await projectService.changeLocale(project, locale);
       setProject(updatedProject);
-      logService.add(`Switched localization to ${updatedProject.localization?.locale ?? locale}.`);
+      logService.info(`Switched localization to ${updatedProject.localization?.locale ?? locale}.`);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      logService.add(`Failed to change localization: ${reason}`, 'error');
+      logService.error(`Failed to change localization: ${reason}`);
     }
   }
 
@@ -679,7 +679,7 @@ function App() {
           { path: node.path, name: node.name, content: dataUrl, isDirty: false, fileType: 'image' },
         ]);
         setActiveFilePath(node.path);
-        logService.add(`Opened image file ${node.name}`);
+        logService.info(`Opened image file ${node.name}`);
         return;
       }
 
@@ -699,7 +699,7 @@ function App() {
           },
         ]);
         setActiveFilePath(node.path);
-        logService.add(`Opened CSV file ${node.name}`);
+        logService.info(`Opened CSV file ${node.name}`);
         return;
       }
 
@@ -708,10 +708,10 @@ function App() {
         { path: node.path, name: node.name, content: text, isDirty: false, fileType: 'text' },
       ]);
       setActiveFilePath(node.path);
-      logService.add(`Opened text file ${node.name}`);
+      logService.info(`Opened text file ${node.name}`);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      logService.add(`Failed to open ${node.name}: ${reason}`, 'error');
+      logService.error(`Failed to open ${node.name}: ${reason}`);
     }
   }
 
@@ -729,17 +729,17 @@ function App() {
   ): Promise<void> {
     const trimmedName = name.trim();
     if (!project) {
-      logService.add('Open a project before creating files or folders.', 'warning');
+      logService.warning('Open a project before creating files or folders.');
       return;
     }
 
     if (!trimmedName) {
-      logService.add('Name cannot be empty.', 'warning');
+      logService.warning('Name cannot be empty.');
       return;
     }
 
     if (containsPathSeparator(trimmedName)) {
-      logService.add('Names cannot contain path separators.', 'warning');
+      logService.warning('Names cannot contain path separators.');
       return;
     }
 
@@ -748,10 +748,10 @@ function App() {
     try {
       if (entryType === 'file') {
         await fileService.createFile(targetPath);
-        logService.add(`Created file ${trimmedName}.`);
+        logService.info(`Created file ${trimmedName}.`);
       } else {
         await fileService.createDirectory(targetPath);
-        logService.add(`Created folder ${trimmedName}.`);
+        logService.info(`Created folder ${trimmedName}.`);
       }
 
       const refreshed = await projectService.reloadProject(project.rootPath, project.localization?.locale);
@@ -761,7 +761,7 @@ function App() {
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       const entryLabel = entryType === 'file' ? 'file' : 'folder';
-      logService.add(`Failed to create ${entryLabel} ${trimmedName}: ${reason}`, 'error');
+      logService.error(`Failed to create ${entryLabel} ${trimmedName}: ${reason}`);
     }
   }
 
@@ -774,23 +774,23 @@ function App() {
   async function handleRenameEntry(currentPath: string, nextName: string): Promise<void> {
     const trimmedName = nextName.trim();
     if (!project) {
-      logService.add('Open a project before renaming files or folders.', 'warning');
+      logService.warning('Open a project before renaming files or folders.');
       return;
     }
 
     if (!trimmedName) {
-      logService.add('Name cannot be empty.', 'warning');
+      logService.warning('Name cannot be empty.');
       return;
     }
 
     if (containsPathSeparator(trimmedName)) {
-      logService.add('Names cannot contain path separators.', 'warning');
+      logService.warning('Names cannot contain path separators.');
       return;
     }
 
     const parentPath = getParentPath(currentPath);
     if (!parentPath) {
-      logService.add('Unable to determine the parent directory for this entry.', 'error');
+      logService.error('Unable to determine the parent directory for this entry.');
       return;
     }
 
@@ -798,7 +798,7 @@ function App() {
     const nextPath = joinPathSegments(parentPath, trimmedName);
 
     if (nextPath === currentPath) {
-      logService.add('The new name matches the current name.', 'warning');
+      logService.warning('The new name matches the current name.');
       return;
     }
 
@@ -818,10 +818,10 @@ function App() {
         setProject(refreshed);
       }
 
-      logService.add(`Renamed ${currentName} to ${trimmedName}.`);
+      logService.info(`Renamed ${currentName} to ${trimmedName}.`);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      logService.add(`Failed to rename ${currentName}: ${reason}`, 'error');
+      logService.error(`Failed to rename ${currentName}: ${reason}`);
     }
   }
 
@@ -833,17 +833,17 @@ function App() {
    */
   async function handleMoveEntry(sourcePath: string, targetDirectory: string): Promise<void> {
     if (!project) {
-      logService.add('Open a project before moving files or folders.', 'warning');
+      logService.warning('Open a project before moving files or folders.');
       return;
     }
 
     if (!targetDirectory.trim()) {
-      logService.add('Select a valid destination directory.', 'warning');
+      logService.warning('Select a valid destination directory.');
       return;
     }
 
     if (isDescendantPath(targetDirectory, sourcePath)) {
-      logService.add('Cannot move a folder into one of its own subfolders.', 'warning');
+      logService.warning('Cannot move a folder into one of its own subfolders.');
       return;
     }
 
@@ -851,14 +851,14 @@ function App() {
     const entryName = sourcePath.split(entrySeparator).pop() ?? 'entry';
 
     if (entryName === PROJECT_CONFIG_FILENAME) {
-      logService.add(`${PROJECT_CONFIG_FILENAME} must stay in the project root.`, 'warning');
+      logService.warning(`${PROJECT_CONFIG_FILENAME} must stay in the project root.`);
       return;
     }
 
     const destinationPath = joinPathSegments(targetDirectory, entryName);
 
     if (destinationPath === sourcePath) {
-      logService.add('Select a different destination to move this entry.', 'warning');
+      logService.warning('Select a different destination to move this entry.');
       return;
     }
 
@@ -879,10 +879,10 @@ function App() {
         setProject(refreshed);
       }
 
-      logService.add(`Moved ${entryName} to ${targetDirectory}.`);
+      logService.info(`Moved ${entryName} to ${targetDirectory}.`);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      logService.add(`Failed to move ${entryName}: ${reason}`, 'error');
+      logService.error(`Failed to move ${entryName}: ${reason}`);
     }
   }
 
@@ -904,10 +904,10 @@ function App() {
             : file,
         ),
       );
-      logService.add(`Saved ${targetFile.name}`);
+      logService.info(`Saved ${targetFile.name}`);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      logService.add(`Failed to save ${targetFile.name}: ${reason}`, 'error');
+      logService.error(`Failed to save ${targetFile.name}: ${reason}`);
     }
   }
 
@@ -954,10 +954,10 @@ function App() {
       });
 
       const countLabel = dirtyFiles.length === 1 ? 'file' : 'files';
-      logService.add(`Autosaved ${dirtyFiles.length} ${countLabel}: ${savedNames}`);
+      logService.info(`Autosaved ${dirtyFiles.length} ${countLabel}: ${savedNames}`);
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      logService.add(`Autosave failed: ${reason}`, 'error');
+      logService.error(`Autosave failed: ${reason}`);
     } finally {
       autosaveInProgress.current = false;
       if (openFilesRef.current.some(file => isEditableFile(file) && file.isDirty)) {
@@ -981,12 +981,11 @@ function App() {
       setSettingsPath(settings.path);
       setAutosaveSettings(parseAutosaveSettings(settings.content));
       setIsSettingsOpen(true);
-      logService.add(`Loaded settings from ${settings.path}`);
+      logService.info(`Loaded settings from ${settings.path}`);
     } catch (error) {
       console.error('Failed to load settings', error);
       setSettingsError('Unable to load settings file.');
-      setIsSettingsOpen(true);
-      logService.add('Unable to load settings file.', 'error');
+      logService.error('Unable to load settings file.');
     }
   }
 
@@ -1007,13 +1006,13 @@ function App() {
     try {
       const result = await window.api.saveSettings(settingsContent);
       setSettingsPath(result.path);
-      logService.add(`Settings saved to ${result.path}`);
+      logService.info(`Settings saved to ${result.path}`);
       setAutosaveSettings(parseAutosaveSettings(settingsContent));
       setIsSettingsOpen(false);
     } catch (error) {
       console.error('Failed to save settings', error);
       setSettingsError('Unable to save settings. Please check your YAML syntax.');
-      logService.add('Unable to save settings. Please check your YAML syntax.', 'error');
+      logService.error('Unable to save settings. Please check your YAML syntax.');
     } finally {
       setIsSavingSettings(false);
     }

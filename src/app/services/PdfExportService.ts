@@ -21,7 +21,7 @@ class PdfExportService {
     const filePath = await window.api.savePdfDialog(defaultPath);
 
     if (!filePath) {
-      logService.add('PDF export cancelled.', 'info');
+      logService.info('PDF export cancelled.');
       return;
     }
 
@@ -43,7 +43,7 @@ class PdfExportService {
     for (const card of project.resolvedCards) {
       const iframe = document.querySelector<HTMLIFrameElement>('.card-preview__iframe');
       if (!iframe?.contentWindow) {
-        logService.add('Preview iframe not found. Aborting PDF export.', 'error');
+        logService.error('Preview iframe not found. Aborting PDF export.');
         return;
       }
 
@@ -103,7 +103,7 @@ class PdfExportService {
         x += cardWidthMm + margin;
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
-        logService.add(`Failed to render card "${card.card.id}": ${reason}`, 'error');
+        logService.error(`Failed to render card "${card.card.id}": ${reason}`);
       }
 
       renderedCards++;
@@ -113,7 +113,7 @@ class PdfExportService {
     const pdfOutput = doc.output('datauristring');
     const base64 = pdfOutput.substring(pdfOutput.indexOf(',') + 1);
     await window.api.writeBinaryFile(filePath, base64);
-    logService.add(`Successfully exported PDF to ${filePath}`, 'info');
+    logService.info(`Successfully exported PDF to ${filePath}`);
   }
 }
 

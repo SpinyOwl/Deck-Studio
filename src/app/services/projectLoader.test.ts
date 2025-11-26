@@ -81,7 +81,7 @@ describe('ProjectLoader', () => {
         },
       });
 
-      const logSpy = mock.method(logService, 'add');
+      const logSpy = mock.method(logService);
       const selection = await loader.selectProjectFolder();
 
       assert.equal(selection, null);
@@ -97,7 +97,7 @@ describe('ProjectLoader', () => {
         },
       });
 
-      const logSpy = mock.method(logService, 'add');
+      const logSpy = mock.method(logService);
       const selection = await loader.loadProjectFolder('/projects/demo');
 
       assert.equal(selection, null);

@@ -70,14 +70,14 @@ export class TemplateRenderer {
     }
 
     if (templates.defaultTemplate) {
-      logService.add(`Loaded default template from ${templates.defaultTemplate.path}`);
+      logService.info(`Loaded default template from ${templates.defaultTemplate.path}`);
     }
 
     const cardTemplateCount = Object.keys(templates.cardTemplates).length;
     if (cardTemplateCount > 0) {
-      logService.add(`Loaded ${cardTemplateCount} card-specific template(s).`);
+      logService.info(`Loaded ${cardTemplateCount} card-specific template(s).`);
       for (const cardTemplatesKey in templates.cardTemplates) {
-        logService.add(`  - ${cardTemplatesKey}`);
+        logService.info(`  - ${cardTemplatesKey}`);
       }
     }
 
@@ -152,24 +152,22 @@ export class TemplateRenderer {
     const cardTemplate = requestedPath ? templates.cardTemplates[requestedPath] : undefined;
 
     if (requestedPath && !cardTemplate && !templates.defaultTemplate) {
-      logService.add(
-        `Unable to render card at row ${index + 1}: template "${requestedPath}" not found and no default template configured.`,
-        'warning',
+      logService.warning(
+        `Unable to render card at row ${index + 1}: template "${requestedPath}" not found and no default template configured.`
       );
 
       return null;
     }
 
     if (requestedPath && !cardTemplate && templates.defaultTemplate) {
-      logService.add(
+      logService.warning(
         `Template "${requestedPath}" missing for card at row ${index + 1}. Falling back to default template.`,
-        'warning',
       );
     }
 
     const template = cardTemplate || templates.defaultTemplate;
     if (!template) {
-      logService.add(`Unable to render card at row ${index + 1}: no template available.`, 'warning');
+      logService.warning(`Unable to render card at row ${index + 1}: no template available.`);
 
       return null;
     }
@@ -487,7 +485,7 @@ export class TemplateRenderer {
       return loadedTemplate;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
-      logService.add(`Failed to load template at ${absolutePath}: ${reason}`, 'warning');
+      logService.warning(`Failed to load template at ${absolutePath}: ${reason}`);
 
       return null;
     }

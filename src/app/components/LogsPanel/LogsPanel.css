@@ -61,6 +61,10 @@
     color: var(--color-info);
 }
 
+.logs__row--debug .logs__level {
+    color: var(--color-text-muted);
+}
+
 .logs__row--warning .logs__level {
     color: var(--color-warning);
 }

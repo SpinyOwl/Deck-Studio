@@ -1,6 +1,6 @@
 // src/services/LogService.ts
 
-export type LogLevel = 'info' | 'warning' | 'error';
+export type LogLevel = 'info' | 'warning' | 'error' | 'debug';
 
 export interface LogEntry {
   readonly id: string;
@@ -8,6 +8,7 @@ export interface LogEntry {
   readonly level: LogLevel;
   readonly timestamp: string;
   readonly sourceFile: string;
+  readonly stackTrace?: string; // Added stackTrace field
 }
 
 type LogListener = (entries: LogEntry[]) => void;
@@ -27,18 +28,40 @@ export class LogService {
    *
    * @param message - Human-readable message to capture.
    * @param level - Severity classification for the log entry.
+   * @param addTrace - Whether to include the full stack trace.
    */
-  public add(message: string, level: LogLevel = 'info'): void {
+  public log(message: string, level: LogLevel = 'info', addTrace: boolean = false): void {
+    console.log(level, message);
+    const error = new Error();
+    const stackTrace = addTrace ? error.stack : undefined;
+
     const nextEntry: LogEntry = {
       id: `${Date.now()}-${this.idCounter++}`,
       message,
       level,
       timestamp: new Date().toISOString(),
-      sourceFile: this.resolveCallerFile(),
+      sourceFile: this.resolveCallerFile(error),
+      stackTrace,
     };
 
     this.entries.push(nextEntry);
     this.notify();
+  }
+
+  public info(message: string, addTrace: boolean = false): void {
+    this.log(message, 'info', addTrace);
+  }
+
+  public warning(message: string, addTrace: boolean = false): void {
+    this.log(message, 'warning', addTrace);
+  }
+
+  public error(message: string, addTrace: boolean = false): void {
+    this.log(message, 'error', addTrace);
+  }
+
+  public debug(message: string, addTrace: boolean = false): void {
+    this.log(message, 'debug', addTrace);
   }
 
   /**
@@ -68,10 +91,11 @@ export class LogService {
   /**
    * Attempts to identify the calling source file from the current stack trace.
    *
+   * @param error - The error object to extract the stack from.
    * @returns The sanitized source path or "unknown" when unavailable.
    */
-  private resolveCallerFile(): string {
-    const stack = new Error().stack;
+  private resolveCallerFile(error: Error): string {
+    const stack = error.stack;
     if (!stack) {
       return 'unknown';
     }
