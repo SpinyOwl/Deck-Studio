@@ -84,6 +84,9 @@ function buildColumnDecorations(
     const columnRanges = mapColumnRanges(row);
 
     columnRanges.forEach((range, cellIndex) => {
+      const columnClassName = colors[cellIndex % colors.length];
+      const isActiveColumn = activeColumn === cellIndex;
+
       decorations.push({
         range: new monacoInstance.Range(
           rowIndex + 1,
@@ -92,9 +95,8 @@ function buildColumnDecorations(
           range.endColumn,
         ),
         options: {
-          inlineClassName: `${colors[cellIndex % colors.length]}${
-            activeColumn === cellIndex ? ' csv-column-active' : ''
-          }`,
+          inlineClassName: columnClassName,
+          className: isActiveColumn ? 'csv-column-active' : undefined,
         },
       });
     });
