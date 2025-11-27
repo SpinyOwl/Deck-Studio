@@ -2,7 +2,6 @@
 import React from 'react';
 import {ImageViewer} from '../ImageViewer';
 import {MonacoEditorPane} from '../MonacoEditorPane';
-import {CsvEditorPane} from '../CsvEditorPane';
 import './EditorPanel.css';
 
 interface OpenFile {
@@ -108,18 +107,11 @@ export const EditorPanel: React.FC<Props> = ({
             <div className="editor__viewer">
               <ImageViewer src={activeFile.content} alt={activeFile.name} />
             </div>
-          ) : activeFile.fileType === 'csv' ? (
-            <CsvEditorPane
-              value={activeFile.content}
-              path={activeFile.path}
-              onChange={onCsvChange}
-              onSave={onSave}
-            />
           ) : (
             <MonacoEditorPane
               path={activeFile.path}
               value={activeFile.content}
-              onChange={onChange}
+              onChange={activeFile.fileType === 'csv' ? onCsvChange : onChange}
               onSave={onSave}
             />
           )
