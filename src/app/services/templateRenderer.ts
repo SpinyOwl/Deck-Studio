@@ -14,7 +14,16 @@ import {fileService, type FileService} from './FileService';
  * Loads templates and renders cards using provided data and localization.
  */
 export class TemplateRenderer {
+  private readonly resolvedHtmlCache = new Map<string, ResolvedCard>();
+
   public constructor(private readonly files: FileService) {}
+
+  /**
+   * Clears cached resolved HTML, typically when a project is reloaded.
+   */
+  public clearResolvedCache(): void {
+    this.resolvedHtmlCache.clear();
+  }
 
   /**
    * Loads templates referenced by the project configuration and card entries.
@@ -148,6 +157,12 @@ export class TemplateRenderer {
     localization: ProjectLocalization | null,
     rootPath: string,
   ): Promise<ResolvedCard | null> {
+    const cacheKey = this.buildResolvedCacheKey(card, index, localization?.locale, rootPath);
+    const cached = this.resolvedHtmlCache.get(cacheKey);
+    if (cached) {
+      return {...cached};
+    }
+
     const requestedPath = card[templateColumn]?.trim();
     const cardTemplate = requestedPath ? templates.cardTemplates[requestedPath] : undefined;
 
@@ -175,8 +190,33 @@ export class TemplateRenderer {
     const html = this.renderCardHtml(template.content, card, index, localization, idColumn);
     const resolvedHtml = await this.resolveRelativeLinks(html, rootPath);
     const templatePath = cardTemplate && requestedPath ? requestedPath : template.path;
+    const resolvedCard: ResolvedCard = {index, html: resolvedHtml, templatePath, card};
 
-    return {index, html: resolvedHtml, templatePath, card};
+    this.resolvedHtmlCache.set(cacheKey, resolvedCard);
+
+    return resolvedCard;
+  }
+
+  /**
+   * Produces a cache key for resolved card HTML using the card position and locale.
+   *
+   * @param card - Card data used to generate a stable cache signature.
+   * @param index - Zero-based card index in the source collection.
+   * @param locale - Current localization locale or undefined when not provided.
+   * @param rootPath - Absolute project root path to segregate caches between projects.
+   * @returns Stable cache key for resolved HTML lookup.
+   */
+  private buildResolvedCacheKey(
+    card: CardRecord,
+    index: number,
+    locale: string | undefined,
+    rootPath: string,
+  ): string {
+    const normalizedLocale = locale ?? 'default';
+    const sortedKeys = Object.keys(card).sort();
+    const cardSignature = sortedKeys.map(key => `${key}:${card[key] ?? ''}`).join('|');
+
+    return `${rootPath}::${normalizedLocale}::${index}::${cardSignature}`;
   }
 
   /**

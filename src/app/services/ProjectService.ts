@@ -24,6 +24,7 @@ export class ProjectService {
    * @returns Project metadata including parsed configuration when available.
    */
   public async selectProject(): Promise<Project | null> {
+    this.renderer.clearResolvedCache();
     const selection = await this.loader.selectProjectFolder();
     if (!selection) {
       return null;
@@ -41,6 +42,7 @@ export class ProjectService {
    */
   public async reloadProject(rootPath: string, localeOverride?: string): Promise<Project | null> {
     this.localization.clearCache();
+    this.renderer.clearResolvedCache();
     const selection = await this.loader.loadProjectFolder(rootPath);
     if (!selection) {
       return null;

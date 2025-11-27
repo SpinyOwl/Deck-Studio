@@ -42,6 +42,7 @@ const createProjectService = (overrides: ServiceOverrides = {}) => {
   const renderer: Partial<TemplateRenderer> = {
     loadProjectTemplates: async () => ({cardTemplates: {}}),
     resolveCardTemplates: async () => [],
+    clearResolvedCache: () => {},
     ...overrides.renderer,
   };
 
