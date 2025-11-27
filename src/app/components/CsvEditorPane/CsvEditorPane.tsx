@@ -2,14 +2,14 @@
 import React from 'react';
 import Editor, {type OnMount} from '@monaco-editor/react';
 import type * as monaco from 'monaco-editor';
-import {CSV_DELIMITER, mapColumnRanges, splitCsvRows} from '../../utils/csv';
+import {mapColumnRanges, splitCsvRows} from '../../utils/csv';
 import './CsvEditorPane.css';
 
 interface Props {
   readonly value: string;
   readonly onChange: (value: string) => void;
   readonly onSave: () => void;
-  readonly fileName?: string;
+  readonly path?: string;
 }
 
 /**
@@ -76,7 +76,7 @@ function buildColumnDecorations(
  * @param props - Component props.
  * @returns CSV editor pane backed by the Monaco code editor.
  */
-export const CsvEditorPane: React.FC<Props> = ({value, onChange, onSave, fileName}) => {
+export const CsvEditorPane: React.FC<Props> = ({value, onChange, onSave, path}) => {
   const editorRef = React.useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = React.useRef<typeof monaco | null>(null);
   const saveHandlerRef = React.useRef<() => void>(() => {});
@@ -129,12 +129,13 @@ export const CsvEditorPane: React.FC<Props> = ({value, onChange, onSave, fileNam
   }, [applyDecorations, content]);
 
   return (
-    <div className="csv-editor" aria-label={fileName ? `${fileName} CSV editor` : 'CSV editor'}>
+    <div className="csv-editor" aria-label={path ? `${path} CSV editor` : 'CSV editor'}>
       <Editor
         height="100%"
         language="plaintext"
         theme="vs-dark"
         value={content}
+        path={path}
         onChange={handleEditorChange}
         onMount={handleMount}
         options={{

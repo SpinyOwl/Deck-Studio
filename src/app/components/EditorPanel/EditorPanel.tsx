@@ -112,7 +112,7 @@ export const EditorPanel: React.FC<Props> = ({
             <div className="editor__viewer">
               <CsvEditorPane
                 value={activeFile.content}
-                fileName={activeFile.name}
+                path={activeFile.path}
                 onChange={onCsvChange}
                 onSave={onSave}
               />
