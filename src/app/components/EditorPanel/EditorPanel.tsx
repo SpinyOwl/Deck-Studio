@@ -109,14 +109,12 @@ export const EditorPanel: React.FC<Props> = ({
               <ImageViewer src={activeFile.content} alt={activeFile.name} />
             </div>
           ) : activeFile.fileType === 'csv' ? (
-            <div className="editor__viewer">
-              <CsvEditorPane
-                value={activeFile.content}
-                path={activeFile.path}
-                onChange={onCsvChange}
-                onSave={onSave}
-              />
-            </div>
+            <CsvEditorPane
+              value={activeFile.content}
+              path={activeFile.path}
+              onChange={onCsvChange}
+              onSave={onSave}
+            />
           ) : (
             <MonacoEditorPane
               path={activeFile.path}

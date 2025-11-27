@@ -17,34 +17,11 @@ interface Props {
  *
  * @param monacoInstance - Monaco namespace instance.
  * @param content - Current editor content.
+ * @param activeColumn - Currently highlighted column index.
  * @returns Array of Monaco decorations representing column backgrounds.
  */
-function buildColumnDecorations(
-  monacoInstance: typeof monaco,
-  content: string,
-): monaco.editor.IModelDeltaDecoration[] {
-  const colors = [
-    'csv-column-color-0',
-    'csv-column-color-1',
-    'csv-column-color-2',
-    'csv-column-color-3',
-    'csv-column-color-4',
-    'csv-column-color-5',
-    'csv-column-color-6',
-    'csv-column-color-7',
-    'csv-column-color-8',
-    'csv-column-color-9',
-    'csv-column-color-10',
-    'csv-column-color-11',
-    'csv-column-color-12',
-    'csv-column-color-13',
-    'csv-column-color-14',
-    'csv-column-color-15',
-    'csv-column-color-16',
-    'csv-column-color-17',
-    'csv-column-color-18',
-    'csv-column-color-19',
-  ];
+function buildColumnDecorations(monacoInstance: typeof monaco, content: string, activeColumn: number | null,): monaco.editor.IModelDeltaDecoration[] {
+  const colors = ['csv-column-color-0', 'csv-column-color-1', 'csv-column-color-2', 'csv-column-color-3', 'csv-column-color-4', 'csv-column-color-5', 'csv-column-color-6', 'csv-column-color-7', 'csv-column-color-8', 'csv-column-color-9', 'csv-column-color-10', 'csv-column-color-11', 'csv-column-color-12', 'csv-column-color-13', 'csv-column-color-14', 'csv-column-color-15', 'csv-column-color-16', 'csv-column-color-17', 'csv-column-color-18', 'csv-column-color-19',];
 
   const rows = splitCsvRows(content);
 
@@ -54,14 +31,8 @@ function buildColumnDecorations(
 
     columnRanges.forEach((range, cellIndex) => {
       decorations.push({
-        range: new monacoInstance.Range(
-          rowIndex + 1,
-          range.startColumn,
-          rowIndex + 1,
-          range.endColumn,
-        ),
-        options: {
-          inlineClassName: colors[cellIndex % colors.length],
+        range: new monacoInstance.Range(rowIndex + 1, range.startColumn, rowIndex + 1, range.endColumn,), options: {
+          inlineClassName: `${colors[cellIndex % colors.length]}${activeColumn === cellIndex ? ' csv-column-active' : ''}`,
         },
       });
     });
@@ -71,16 +42,34 @@ function buildColumnDecorations(
 }
 
 /**
+ * Derives the CSV column index from a Monaco position and model content.
+ *
+ * @param model - Monaco text model backing the editor.
+ * @param position - Current cursor position within the model.
+ * @returns Zero-based column index or null when no column is found.
+ */
+function resolveColumnIndex(model: monaco.editor.ITextModel, position: monaco.Position,): number | null {
+  const rowContent = model.getLineContent(position.lineNumber);
+  const columnRanges = mapColumnRanges(rowContent);
+  const targetIndex = columnRanges.findIndex((range) => position.column >= range.startColumn && position.column < range.endColumn,);
+
+  return targetIndex >= 0 ? targetIndex : null;
+}
+
+/**
  * Renders a Monaco-based CSV editor with rainbow column highlighting and save shortcut support.
  *
  * @param props - Component props.
  * @returns CSV editor pane backed by the Monaco code editor.
  */
-export const CsvEditorPane: React.FC<Props> = ({value, onChange, onSave, path}) => {
+export const CsvEditorPane: React.FC<Props> = ({path, value, onChange, onSave}) => {
   const editorRef = React.useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = React.useRef<typeof monaco | null>(null);
-  const saveHandlerRef = React.useRef<() => void>(() => {});
+  const saveHandlerRef = React.useRef<() => void>(() => {
+  });
   const decorationIds = React.useRef<string[]>([]);
+
+  const [activeColumn, setActiveColumn] = React.useState<number | null>(null);
 
   const [content, setContent] = React.useState<string>(() => value);
 
@@ -92,31 +81,22 @@ export const CsvEditorPane: React.FC<Props> = ({value, onChange, onSave, path}) 
     saveHandlerRef.current = onSave;
   }, [onSave]);
 
-  const applyDecorations = React.useCallback(
-    (model: monaco.editor.ITextModel | null, value: string) => {
-      if (!model || !monacoRef.current) {
-        return;
-      }
+  const applyDecorations = React.useCallback((model: monaco.editor.ITextModel | null, value: string, highlightedColumn: number | null,) => {
+    if (!model || !monacoRef.current) {
+      return;
+    }
 
-      decorationIds.current = model.deltaDecorations(
-        decorationIds.current,
-        buildColumnDecorations(monacoRef.current, value),
-      );
-    },
-    [],
-  );
+    decorationIds.current = model.deltaDecorations(decorationIds.current, buildColumnDecorations(monacoRef.current, value, highlightedColumn),);
+  }, [],);
 
-  const handleEditorChange = React.useCallback(
-    (value?: string) => {
-      const nextContent = value ?? '';
-      setContent(nextContent);
-      onChange(nextContent);
-      applyDecorations(editorRef.current?.getModel() ?? null, nextContent);
-    },
-    [applyDecorations, onChange],
-  );
+  const handleEditorChange = React.useCallback((value?: string) => {
+    const nextContent = value ?? '';
+    setContent(nextContent);
+    onChange(nextContent);
+    applyDecorations(editorRef.current?.getModel() ?? null, nextContent, activeColumn,);
+  }, [activeColumn, applyDecorations, onChange],);
 
-  const handleMount = React.useCallback<OnMount>((editor, monacoInstance) => {
+  const handleEditorMount = React.useCallback<OnMount>((editor, monacoInstance) => {
     editorRef.current = editor;
     monacoRef.current = monacoInstance;
     const model = editor.getModel();
@@ -125,26 +105,49 @@ export const CsvEditorPane: React.FC<Props> = ({value, onChange, onSave, path}) 
       saveHandlerRef.current();
     });
 
-    applyDecorations(model, content);
-  }, [applyDecorations, content]);
+    const updateActiveColumn = (position: monaco.Position) => {
+      if (!model) {
+        setActiveColumn(null);
+        return;
+      }
 
-  return (
-    <div className="csv-editor" aria-label={path ? `${path} CSV editor` : 'CSV editor'}>
+      setActiveColumn(resolveColumnIndex(model, position));
+    };
+
+    const initialPosition = editor.getPosition();
+    if (initialPosition) {
+      updateActiveColumn(initialPosition);
+    }
+
+    editor.onDidChangeCursorPosition(({position}) => {
+      updateActiveColumn(position);
+    });
+
+    editor.onDidChangeCursorSelection(({selection}) => {
+      updateActiveColumn(selection.getPosition());
+    });
+
+    applyDecorations(model, content, activeColumn);
+  }, [activeColumn, applyDecorations, content]);
+
+  React.useEffect(() => {
+    const model = editorRef.current?.getModel() ?? null;
+    applyDecorations(model, content, activeColumn);
+  }, [activeColumn, applyDecorations, content]);
+
+  return (<div className="csv-editor">
       <Editor
         height="100%"
         language="plaintext"
         theme="vs-dark"
-        value={content}
         path={path}
+        value={content}
         onChange={handleEditorChange}
-        onMount={handleMount}
+        onMount={handleEditorMount}
+        className={`${path ? 'editor-visible' : 'editor-hidden'}`}
         options={{
-          fontSize: 14,
-          minimap: {enabled: false},
-          automaticLayout: true,
-          wordWrap: 'on',
+          fontSize: 14, minimap: {enabled: true}, automaticLayout: true, wordWrap: 'off'
         }}
       />
-    </div>
-  );
+    </div>);
 };
