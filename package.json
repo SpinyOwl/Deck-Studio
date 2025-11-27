@@ -19,6 +19,7 @@
     "jspdf": "^3.0.4",
     "monaco-editor": "^0.55.1",
     "papaparse": "^5.5.3",
+    "pdf-lib": "^1.17.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "yaml": "^2.8.1"
