@@ -40,6 +40,7 @@ export class ProjectService {
    * @returns Refreshed project metadata or null when loading fails.
    */
   public async reloadProject(rootPath: string, localeOverride?: string): Promise<Project | null> {
+    this.localization.clearCache();
     const selection = await this.loader.loadProjectFolder(rootPath);
     if (!selection) {
       return null;

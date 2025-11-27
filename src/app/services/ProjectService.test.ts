@@ -35,6 +35,7 @@ const createProjectService = (overrides: ServiceOverrides = {}) => {
       availableLocales: ['en', 'fr'],
       messages: {},
     }),
+    clearCache: () => {},
     ...overrides.localization,
   };
 
@@ -103,5 +104,20 @@ describe('ProjectService', () => {
 
     assert.equal(requestedLocale, undefined);
     assert.equal(project?.localization?.locale, 'en');
+  });
+
+  test('clears localization cache before reloading project', async () => {
+    let cleared = false;
+    const {service} = createProjectService({
+      localization: {
+        clearCache: () => {
+          cleared = true;
+        },
+      },
+    });
+
+    await service.reloadProject('/projects/demo');
+
+    assert.ok(cleared);
   });
 });

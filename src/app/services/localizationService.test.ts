@@ -39,4 +39,67 @@ describe('LocalizationService', () => {
     assert.deepEqual(localization?.messages, {greeting: 'Hello'});
     assert.deepEqual(localization?.availableLocales, ['en', 'es']);
   });
+
+  test('caches localization loads for the same project', async () => {
+    let readCount = 0;
+    const tree: FileNode[] = [
+      {
+        type: 'dir',
+        name: 'i18n',
+        path: '/project/i18n',
+        children: [{type: 'file', name: 'en.yml', path: '/project/i18n/en.yml'}],
+      },
+    ];
+
+    const service = new LocalizationService(
+      {
+        readTextFile: async () => {
+          readCount += 1;
+
+          return 'greeting: Hello';
+        },
+      } as Partial<FileService> as FileService,
+      {
+        parse: () => ({greeting: 'Hello'}),
+      } as Partial<YamlParsingService> as YamlParsingService,
+    );
+
+    const config = {localization: {defaultLocale: 'en', directory: 'i18n'}} as never;
+
+    await service.loadLocalization('/project', config, tree);
+    await service.loadLocalization('/project', config, tree);
+
+    assert.equal(readCount, 1);
+  });
+
+  test('clears cached localization when project root changes', async () => {
+    let readCount = 0;
+    const service = new LocalizationService(
+      {
+        readTextFile: async () => {
+          readCount += 1;
+
+          return 'greeting: Hello';
+        },
+      } as Partial<FileService> as FileService,
+      {
+        parse: () => ({greeting: 'Hello'}),
+      } as Partial<YamlParsingService> as YamlParsingService,
+    );
+
+    const config = {localization: {defaultLocale: 'en', directory: 'i18n'}} as never;
+    const tree: FileNode[] = [
+      {
+        type: 'dir',
+        name: 'i18n',
+        path: '/project/i18n',
+        children: [{type: 'file', name: 'en.yml', path: '/project/i18n/en.yml'}],
+      },
+    ];
+
+    await service.loadLocalization('/project', config, tree);
+    await service.loadLocalization('/other-project', config, tree);
+
+    assert.equal(readCount, 2);
+  });
 });

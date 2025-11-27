@@ -9,6 +9,10 @@ import {yamlParsingService, YamlParsingService} from './YamlParsingService';
  * Handles discovery and loading of localization bundles.
  */
 export class LocalizationService {
+  private cachedRootPath: string | null = null;
+
+  private readonly localizationCache = new Map<string, ProjectLocalization | null>();
+
   public constructor(
     private readonly files: FileService,
     private readonly yamlParser: YamlParsingService,
@@ -30,10 +34,17 @@ export class LocalizationService {
     tree?: FileNode[],
     localeOverride?: string,
   ): Promise<ProjectLocalization | null> {
+    this.ensureCacheForRoot(rootPath);
     const directory = config?.localization?.directory?.trim() || 'i18n';
     const availableLocales = this.collectAvailableLocales(tree ?? [], rootPath, directory);
     const requestedLocale = localeOverride?.trim() || config?.localization?.defaultLocale?.trim() || 'en';
     const locale = requestedLocale || availableLocales[0] || 'en';
+    const cacheKey = this.buildCacheKey(rootPath, locale);
+    if (this.localizationCache.has(cacheKey)) {
+      const cachedLocalization = this.localizationCache.get(cacheKey);
+
+      return cachedLocalization ?? null;
+    }
     const localizationPath = this.resolveProjectFilePath(rootPath, `${directory}/${locale}.yml`);
 
     try {
@@ -41,13 +52,49 @@ export class LocalizationService {
       const messages = this.yamlParser.parse<LocalizationMessages>(content);
       logService.info(`Loaded localization for locale "${locale}" from ${localizationPath}`);
 
-      return {locale, messages, availableLocales};
+      const localization = {locale, messages, availableLocales};
+      this.localizationCache.set(cacheKey, localization);
+
+      return localization;
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       logService.warning(`Failed to load localization from ${localizationPath}: ${reason}`);
 
+      this.localizationCache.set(cacheKey, null);
+
       return null;
     }
+  }
+
+  /**
+   * Clears cached localization data so the next load will read from disk.
+   */
+  public clearCache(): void {
+    this.cachedRootPath = null;
+    this.localizationCache.clear();
+  }
+
+  /**
+   * Ensures cached localization only applies to the currently loaded project.
+   *
+   * @param rootPath - Absolute root path for the active project.
+   */
+  private ensureCacheForRoot(rootPath: string): void {
+    if (this.cachedRootPath !== rootPath) {
+      this.cachedRootPath = rootPath;
+      this.localizationCache.clear();
+    }
+  }
+
+  /**
+   * Builds a cache key for a project locale pair.
+   *
+   * @param rootPath - Absolute project root path.
+   * @param locale - Locale code used to load localization.
+   * @returns Cache key unique to the project and locale.
+   */
+  private buildCacheKey(rootPath: string, locale: string): string {
+    return `${rootPath}::${locale}`;
   }
 
   /**

@@ -23,6 +23,10 @@ const createLoader = (options: {
   );
 };
 
+const setWindowApi = (api: unknown): void => {
+  (globalThis as { window?: unknown }).window = {api} as never;
+};
+
 describe('ProjectLoader', () => {
   test('resolves file paths with platform separators', () => {
     const loader = createLoader();
@@ -73,6 +77,9 @@ describe('ProjectLoader', () => {
 
   describe('folder selection and loading', () => {
     test('stops loading when project file is missing', async () => {
+      setWindowApi({
+        selectProjectFolder: async () => ({rootPath: '/projects/demo', tree: []}),
+      });
       const loader = createLoader({
         files: {
           readTextFile: async () => {
@@ -81,7 +88,7 @@ describe('ProjectLoader', () => {
         },
       });
 
-      const logSpy = mock.method(logService);
+      const logSpy = mock.method(logService, 'warning');
       const selection = await loader.selectProjectFolder();
 
       assert.equal(selection, null);
@@ -89,6 +96,9 @@ describe('ProjectLoader', () => {
     });
 
     test('stops reloading when project file is missing', async () => {
+      setWindowApi({
+        loadProjectFolder: async () => ({rootPath: '/projects/demo', tree: []}),
+      });
       const loader = createLoader({
         files: {
           readTextFile: async () => {
@@ -97,7 +107,7 @@ describe('ProjectLoader', () => {
         },
       });
 
-      const logSpy = mock.method(logService);
+      const logSpy = mock.method(logService, 'warning');
       const selection = await loader.loadProjectFolder('/projects/demo');
 
       assert.equal(selection, null);
