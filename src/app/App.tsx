@@ -614,6 +614,21 @@ function App() {
   }
 
   /**
+   * Closes the current project and clears editor state.
+   */
+  function handleCloseProject() {
+    if (!project) {
+      return;
+    }
+
+    clearAutosaveTimer();
+    setProject(null);
+    setOpenFiles([]);
+    setActiveFilePath(null);
+    logService.info(`Closed project at ${project.rootPath}`);
+  }
+
+  /**
    * Updates the current project to use a different localization bundle and re-render cards.
    *
    * @param locale - Locale code selected from the preview toolbar.
@@ -1218,17 +1233,6 @@ function App() {
           <button
             type="button"
             className="toolbar__icon-button"
-            aria-label="Save file"
-            disabled={!activeFile?.isDirty}
-            onClick={handleSave}
-          >
-            <span aria-hidden="true" className="material-symbols-outlined">
-              save
-            </span>
-          </button>
-          <button
-            type="button"
-            className="toolbar__icon-button"
             aria-label="Export to PDF"
             disabled={!project?.resolvedCards.length}
             onClick={handleExport}
@@ -1245,6 +1249,18 @@ function App() {
           >
             <span aria-hidden="true" className="material-symbols-outlined">
               settings
+            </span>
+          </button>
+          <div className="toolbar__separator" />
+          <button
+            type="button"
+            className="toolbar__icon-button"
+            aria-label="Close project"
+            disabled={!project}
+            onClick={handleCloseProject}
+          >
+            <span aria-hidden="true" className="material-symbols-outlined">
+              close
             </span>
           </button>
         </div>

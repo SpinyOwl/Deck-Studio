@@ -66,6 +66,12 @@
     align-items: center;
     gap: 8px;
     margin-left: auto;
+    height: 100%;
+}
+
+.toolbar__separator {
+    border-left: 1px solid var(--color-border-subtle);
+    height: 80%;
 }
 
 .toolbar__icon-button {
