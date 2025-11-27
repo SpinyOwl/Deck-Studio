@@ -92,10 +92,6 @@ export const FileTree: React.FC<Props> = ({ nodes, selectedPath, onSelectFile, o
     setExpandedPaths(prev => {
       const directories = collectDirectoryPaths(nodes);
 
-      if (prev.size === 0) {
-        return directories;
-      }
-
       const next = new Set<string>();
       prev.forEach(path => {
         if (directories.has(path)) {
