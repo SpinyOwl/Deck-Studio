@@ -135,7 +135,8 @@ export const CsvEditorPane: React.FC<Props> = ({path, value, onChange, onSave}) 
     applyDecorations(model, content, activeColumn);
   }, [activeColumn, applyDecorations, content]);
 
-  return (<div className="csv-editor">
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
       <Editor
         height="100%"
         language="plaintext"
