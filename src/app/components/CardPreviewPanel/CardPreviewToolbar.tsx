@@ -58,6 +58,7 @@ const ToolbarSelect: React.FC<ToolbarSelectProps> = ({placeholder, tooltip, opti
   title={tooltip}
   value={value}
   onChange={(event) => onChange(event.target.value)}
+  onWheel={(event) => handleSelectScroll(event, options, value, onChange)}
 >
   <option value="" disabled hidden>
     {placeholder}
@@ -67,6 +68,41 @@ const ToolbarSelect: React.FC<ToolbarSelectProps> = ({placeholder, tooltip, opti
     {option.label}
   </option>))}
 </select>);
+
+/**
+ * Handles scrolling interactions on toolbar select elements to navigate options.
+ *
+ * @param event - Wheel event triggered on the select element.
+ * @param options - Available select options.
+ * @param value - Currently selected option value.
+ * @param onChange - Callback to update the selected value.
+ */
+function handleSelectScroll(
+  event: React.WheelEvent<HTMLSelectElement>,
+  options: Array<{ value: string; label: string }>,
+  value: string,
+  onChange: (nextValue: string) => void,
+): void {
+  if (options.length === 0) {
+    return;
+  }
+
+  const direction = event.deltaY > 0 ? 1 : -1;
+  const currentIndex = options.findIndex(option => option.value === value);
+
+  if (currentIndex === -1 || direction === 0) {
+    return;
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  const nextIndex = Math.min(Math.max(currentIndex + direction, 0), options.length - 1);
+
+  if (nextIndex !== currentIndex) {
+    onChange(options[nextIndex].value);
+  }
+}
 
 /**
  * Toolbar for the card preview panel containing zoom controls and selectors.
