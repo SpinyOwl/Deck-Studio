@@ -70,7 +70,7 @@ export class LogService {
    * @returns An immutable copy of stored log entries.
    */
   public getLogs(): LogEntry[] {
-    return [...this.entries];
+    return this.entries.map(entry => ({ ...entry }));
   }
 
   /**
@@ -146,8 +146,7 @@ export class LogService {
   }
 
   private notify(): void {
-    const snapshot = this.getLogs();
-    this.listeners.forEach(listener => listener(snapshot));
+    this.listeners.forEach(listener => listener(this.getLogs()));
   }
 }
 
