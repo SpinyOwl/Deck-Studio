@@ -216,6 +216,9 @@ function App() {
   const autosaveInProgress = useRef(false);
   const performAutosaveRef = useRef<() => Promise<void>>(async () => {});
   const layoutHydrated = useRef(false);
+  const textChangeTimeoutId = useRef<ReturnType<typeof window.setTimeout> | null>(
+    null,
+  );
 
   /**
    * Clears any pending autosave timer.
@@ -1088,14 +1091,45 @@ function App() {
   function handleTextEditorChange(val: string) {
     if (!activeFilePath) return;
 
+    const currentFile = openFiles.find(
+      file => file.path === activeFilePath && file.fileType === 'text',
+    );
+
+    if (!currentFile || currentFile.content === val) return;
+
+    if (textChangeTimeoutId.current) {
+      window.clearTimeout(textChangeTimeoutId.current);
+    }
+
+    const targetPath = activeFilePath;
+
     setOpenFiles(prev =>
       prev.map(file =>
-        file.path === activeFilePath && file.fileType === 'text'
-          ? { ...file, content: val, isDirty: true }
+        file.path === targetPath && file.fileType === 'text'
+          ? {...file, isDirty: true}
           : file,
       ),
-    );
+    )
+
+    textChangeTimeoutId.current = setTimeout(() => {
+      setOpenFiles(prev =>
+        prev.map(file =>
+          file.path === targetPath && file.fileType === 'text'
+            ? {...file, content: val, isDirty: true}
+            : file,
+        ),
+      );
+    }, 300);
   }
+
+  useEffect(
+    () => () => {
+      if (textChangeTimeoutId.current) {
+        window.clearTimeout(textChangeTimeoutId.current);
+      }
+    },
+    [],
+  );
 
   /**
    * Normalizes and tracks edits from the CSV grid editor.
