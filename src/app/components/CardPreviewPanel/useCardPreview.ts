@@ -153,7 +153,7 @@ export function useCardPreview({project}: UseCardPreviewParams): CardPreviewCont
   const resolvedCards = useMemo(() => project?.resolvedCards ?? [], [project]);
   const [selectedCardValue, setSelectedCardValue] = useState('0');
   const [zoom, setZoom] = useState(1);
-  const [fitToViewport, setFitToViewport] = useState(false);
+  const [fitToViewport, setFitToViewport] = useState(true);
   const [manualZoomMode, setManualZoomMode] = useState<'original' | 'zoom-in' | 'zoom-out'>('original');
   const [isPanning, setIsPanning] = useState(false);
   const isPanningRef = useRef(false);
@@ -168,6 +168,8 @@ export function useCardPreview({project}: UseCardPreviewParams): CardPreviewCont
   }, [project?.localization?.availableLocales]);
   const selectedLocale = project?.localization?.locale ?? '';
   const hasLocalization = localeOptions.length > 0;
+  const hasProject = Boolean(project);
+  const hasCards = resolvedCards.length > 0;
 
   const cardOptions = useMemo(() => resolvedCards.map((card, index) => ({
     value: `${index}`,
@@ -334,7 +336,7 @@ export function useCardPreview({project}: UseCardPreviewParams): CardPreviewCont
   }, [scaledHeight, scaledWidth]);
 
   useEffect(() => {
-    if (!fitToViewport) {
+    if (!fitToViewport || !hasCards) {
       return undefined;
     }
 
@@ -365,7 +367,7 @@ export function useCardPreview({project}: UseCardPreviewParams): CardPreviewCont
       resizeObserver.disconnect();
       window.removeEventListener('resize', applyFitZoom);
     };
-  }, [computeFitZoom, fitToViewport]);
+  }, [computeFitZoom, fitToViewport, hasCards, safeSelectedCard]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -388,8 +390,6 @@ export function useCardPreview({project}: UseCardPreviewParams): CardPreviewCont
     recenterViewport();
   }, [cardHeightPx, cardWidthPx, recenterViewport, viewportSize.height, viewportSize.width, zoom]);
 
-  const hasProject = Boolean(project);
-  const hasCards = resolvedCards.length > 0;
   const activeToolbarButton = fitToViewport ? 'fit' : manualZoomMode;
 
   return {
