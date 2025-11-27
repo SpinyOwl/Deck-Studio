@@ -272,7 +272,7 @@ async function createFile(filePath, content = '') {
 }
 
 /**
- * Creates a directory at the provided absolute path, failing when the directory already exists.
+ * Creates a directory at the provided absolute path, succeeding when the directory already exists.
  *
  * @param {string} directoryPath - Absolute directory path to create.
  * @returns {Promise<boolean>} Indicates whether the directory was created.
@@ -283,7 +283,7 @@ async function createDirectory(directoryPath) {
         throw new Error('Directory path is required to create a new folder.');
     }
 
-    await fsPromises.mkdir(normalizedPath, { recursive: false });
+    await fsPromises.mkdir(normalizedPath, { recursive: true });
 
     return true;
 }
@@ -423,7 +423,7 @@ app.on('window-all-closed', () => {
 // ---- Project folder + FS helpers ----
 
 const IGNORED_DIRECTORIES = new Set(['node_modules']);
-const IGNORED_PREFIXES = ['.git'];
+const IGNORED_PREFIXES = ['.git', 'output'];
 const projectWatchers = new Map();
 
 function shouldIgnoreDirectory(name) {
@@ -647,12 +647,12 @@ ipcMain.handle('read-binary-file', async (_event, filePath) => {
 });
 
 ipcMain.handle('write-binary-file', async (_event, filePath, content) => {
-    await fsPromises.writeFile(filePath, content, 'base64');
+    await fsPromises.writeFile(filePath, content, { encoding: 'base64', flag: 'w' });
     return true;
 });
 
 ipcMain.handle('write-file', async (_event, filePath, content) => {
-    await fsPromises.writeFile(filePath, content, 'utf8');
+    await fsPromises.writeFile(filePath, content, { encoding: 'utf8', flag: 'w' });
     return true;
 });
 

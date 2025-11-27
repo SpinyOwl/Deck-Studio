@@ -710,14 +710,24 @@ function App() {
     }
   }
 
-  async function handleExport() {
-    if (project) {
-      setExportProgress(0);
-      await pdfExportService.exportToPdf(project, (progress) => {
-        setExportProgress(progress);
-      });
-      setExportProgress(null);
+  function handleExport() {
+    if (!project) {
+      return;
     }
+
+    setExportProgress(0);
+
+    void pdfExportService
+      .exportToPdf(project, (progress) => {
+        setExportProgress(progress);
+      })
+      .catch((error: unknown) => {
+        const reason = error instanceof Error ? error.message : String(error);
+        logService.error(`Error exporting PDF: ${reason}`);
+      })
+      .finally(() => {
+        setExportProgress(null);
+      });
   }
 
   /**
