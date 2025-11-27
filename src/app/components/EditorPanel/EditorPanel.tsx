@@ -3,7 +3,6 @@ import React from 'react';
 import {ImageViewer} from '../ImageViewer';
 import {MonacoEditorPane} from '../MonacoEditorPane';
 import {CsvEditorPane} from '../CsvEditorPane';
-import {type CsvGrid} from '../../utils/csv';
 import './EditorPanel.css';
 
 interface OpenFile {
@@ -12,7 +11,6 @@ interface OpenFile {
   readonly content: string;
   readonly isDirty: boolean;
   readonly fileType: 'text' | 'image' | 'csv';
-  readonly csvData?: CsvGrid;
 }
 
 interface Props {
@@ -21,7 +19,7 @@ interface Props {
   readonly onSelectFile: (path: string) => void;
   readonly onCloseFile: (path: string) => void;
   readonly onChange: (value: string) => void;
-  readonly onCsvChange: (value: CsvGrid) => void;
+  readonly onCsvChange: (value: string) => void;
   readonly onSave: () => void;
   readonly isVisible: boolean;
 }
@@ -110,10 +108,10 @@ export const EditorPanel: React.FC<Props> = ({
             <div className="editor__viewer">
               <ImageViewer src={activeFile.content} alt={activeFile.name} />
             </div>
-          ) : activeFile.fileType === 'csv' && activeFile.csvData ? (
+          ) : activeFile.fileType === 'csv' ? (
             <div className="editor__viewer">
               <CsvEditorPane
-                data={activeFile.csvData}
+                value={activeFile.content}
                 fileName={activeFile.name}
                 onChange={onCsvChange}
                 onSave={onSave}

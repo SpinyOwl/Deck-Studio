@@ -28,7 +28,6 @@ import {
   isDescendantPath,
   joinPathSegments,
 } from './utils/path';
-import {type CsvGrid, normalizeCsvGrid, parseCsvGrid, stringifyCsvGrid} from './utils/csv';
 import './styles/AppLayout.css';
 import './styles/Panel.css';
 import { pdfExportService } from './services/PdfExportService';
@@ -51,7 +50,6 @@ type OpenFile = {
   content: string;
   isDirty: boolean;
   fileType: FileType;
-  csvData?: CsvGrid;
 };
 
 type AutosaveSettings = {
@@ -169,10 +167,6 @@ function isEditableFile(file: OpenFile): boolean {
  * @returns String content to write to disk.
  */
 function serializeOpenFile(file: OpenFile): string {
-  if (file.fileType === 'csv' && file.csvData) {
-    return stringifyCsvGrid(file.csvData);
-  }
-
   return file.content;
 }
 
@@ -744,14 +738,12 @@ function App() {
       const text = await fileService.readTextFile(node.path);
 
       if (isCsv) {
-        const csvData = parseCsvGrid(text);
         setOpenFiles(prev => [
           ...prev,
           {
             path: node.path,
             name: node.name,
             content: text,
-            csvData,
             isDirty: false,
             fileType: 'csv',
           },
@@ -1136,16 +1128,13 @@ function App() {
    *
    * @param nextData - Updated CSV matrix from the grid component.
    */
-  function handleCsvEditorChange(nextData: CsvGrid) {
+  function handleCsvEditorChange(nextContent: string) {
     if (!activeFilePath) return;
-
-    const normalized = normalizeCsvGrid(nextData);
-    const serialized = stringifyCsvGrid(normalized);
 
     setOpenFiles(prev =>
       prev.map(file =>
         file.path === activeFilePath && file.fileType === 'csv'
-          ? { ...file, content: serialized, csvData: normalized, isDirty: true }
+          ? { ...file, content: nextContent, isDirty: true }
           : file,
       ),
     );

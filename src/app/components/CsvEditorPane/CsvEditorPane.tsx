@@ -2,143 +2,14 @@
 import React from 'react';
 import Editor, {type OnMount} from '@monaco-editor/react';
 import type * as monaco from 'monaco-editor';
-import {
-  CSV_DELIMITER,
-  normalizeCsvGrid,
-  parseCsvGrid,
-  stringifyCsvGrid,
-  type CsvGrid,
-} from '../../utils/csv';
+import {CSV_DELIMITER, mapColumnRanges, splitCsvRows} from '../../utils/csv';
 import './CsvEditorPane.css';
 
 interface Props {
-  readonly data: CsvGrid;
-  readonly onChange: (data: CsvGrid) => void;
+  readonly value: string;
+  readonly onChange: (value: string) => void;
   readonly onSave: () => void;
   readonly fileName?: string;
-}
-
-interface ColumnRange {
-  readonly startColumn: number;
-  readonly endColumn: number;
-}
-
-/**
- * Safely parses CSV content into a normalized grid, gracefully falling back on loose parsing.
- *
- * @param content - Raw CSV text from the editor.
- * @returns Parsed CSV grid suitable for downstream consumers.
- */
-function safeParseCsvContent(content: string): CsvGrid {
-  try {
-    return parseCsvGrid(content);
-  } catch {
-    const fallbackGrid = content.split(/\r?\n/).map(splitRowByDelimiter);
-    return normalizeCsvGrid(fallbackGrid.map(row => row.map(unquoteCell)));
-  }
-}
-
-/**
- * Splits a CSV row by the configured delimiter while honoring quoted segments.
- *
- * @param row - Raw CSV row string.
- * @returns Cell values exactly as typed, without trimming whitespace.
- */
-function splitRowByDelimiter(row: string): string[] {
-  const cells: string[] = [];
-  let currentStart = 0;
-  let inQuotes = false;
-
-  for (let index = 0; index <= row.length; index += 1) {
-    const character = row[index];
-    const isQuote = character === '"';
-    const isEscapedQuote = inQuotes && character === '"' && row[index + 1] === '"';
-
-    if (isEscapedQuote) {
-      index += 1;
-      continue;
-    }
-
-    if (isQuote) {
-      inQuotes = !inQuotes;
-      continue;
-    }
-
-    const atDelimiter = !inQuotes && character === CSV_DELIMITER;
-    const atEndOfRow = index === row.length;
-
-    if (!atDelimiter && !atEndOfRow) {
-      continue;
-    }
-
-    cells.push(row.slice(currentStart, index));
-    currentStart = index + 1;
-  }
-
-  return cells;
-}
-
-/**
- * Removes wrapping quotes from a CSV cell and unescapes embedded quotes, preserving whitespace.
- *
- * @param cell - Raw cell content that may include surrounding quotes.
- * @returns Unescaped cell value ready for normalization.
- */
-function unquoteCell(cell: string): string {
-  const startsWithQuote = cell.startsWith('"');
-  const endsWithQuote = cell.endsWith('"');
-
-  if (!startsWithQuote || !endsWithQuote || cell.length < 2) {
-    return cell;
-  }
-
-  return cell.slice(1, -1).replace(/""/g, '"');
-}
-
-/**
- * Calculates column ranges for a row, skipping delimiters while respecting quoted segments.
- *
- * @param row - Raw CSV row string.
- * @returns Column start and end pairs for each cell, excluding the delimiter itself.
- */
-function mapColumnRanges(row: string): ColumnRange[] {
-  const ranges: ColumnRange[] = [];
-  let cellStartIndex = 0;
-  let inQuotes = false;
-
-  for (let index = 0; index <= row.length; index += 1) {
-    const character = row[index];
-    const isQuote = character === '"';
-    const isEscapedQuote = inQuotes && character === '"' && row[index + 1] === '"';
-
-    if (isEscapedQuote) {
-      index += 1;
-      continue;
-    }
-
-    if (isQuote) {
-      inQuotes = !inQuotes;
-      continue;
-    }
-
-    const atDelimiter = !inQuotes && character === CSV_DELIMITER;
-    const atEndOfRow = index === row.length;
-
-    if (!atDelimiter && !atEndOfRow) {
-      continue;
-    }
-
-    const startColumn = cellStartIndex + 1;
-    const endColumn = index + 1;
-
-    if (endColumn > startColumn) {
-      ranges.push({startColumn, endColumn});
-    }
-
-    cellStartIndex = index + 1;
-  }
-
-  return ranges;
 }
 
 /**
@@ -175,7 +46,7 @@ function buildColumnDecorations(
     'csv-column-color-19',
   ];
 
-  const rows = content.split(/\r?\n/);
+  const rows = splitCsvRows(content);
 
   return rows.flatMap((row, rowIndex) => {
     const decorations: monaco.editor.IModelDeltaDecoration[] = [];
@@ -205,17 +76,17 @@ function buildColumnDecorations(
  * @param props - Component props.
  * @returns CSV editor pane backed by the Monaco code editor.
  */
-export const CsvEditorPane: React.FC<Props> = ({data, onChange, onSave, fileName}) => {
+export const CsvEditorPane: React.FC<Props> = ({value, onChange, onSave, fileName}) => {
   const editorRef = React.useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = React.useRef<typeof monaco | null>(null);
   const saveHandlerRef = React.useRef<() => void>(() => {});
   const decorationIds = React.useRef<string[]>([]);
 
-  const [content, setContent] = React.useState<string>(() => stringifyCsvGrid(data));
+  const [content, setContent] = React.useState<string>(() => value);
 
   React.useEffect(() => {
-    setContent(stringifyCsvGrid(data));
-  }, [data]);
+    setContent(value);
+  }, [value]);
 
   React.useEffect(() => {
     saveHandlerRef.current = onSave;
@@ -239,7 +110,7 @@ export const CsvEditorPane: React.FC<Props> = ({data, onChange, onSave, fileName
     (value?: string) => {
       const nextContent = value ?? '';
       setContent(nextContent);
-      onChange(safeParseCsvContent(nextContent));
+      onChange(nextContent);
       applyDecorations(editorRef.current?.getModel() ?? null, nextContent);
     },
     [applyDecorations, onChange],
