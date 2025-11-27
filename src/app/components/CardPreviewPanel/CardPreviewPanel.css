@@ -10,19 +10,19 @@
 }
 
 .card-preview__progress-bar {
-  width: 100%;
-  height: 4px;
-  background-color: var(--color-surface-raised);
-  border-radius: 2px;
-  overflow: hidden;
-  margin-bottom: 8px;
+    width: 100%;
+    height: 4px;
+    background-color: var(--color-surface-raised);
+    border-radius: 2px;
+    overflow: hidden;
+    margin-bottom: 8px;
 }
 
 .card-preview__progress-bar-fill {
-  height: 100%;
-  background-color: var(--color-accent);
-  border-radius: 2px;
-  transition: width 0.2s ease-in-out;
+    height: 100%;
+    background-color: var(--color-accent);
+    border-radius: 2px;
+    transition: width 0.2s ease-in-out;
 }
 
 .card-preview__viewport {
@@ -77,6 +77,7 @@
     border-top: 1px solid var(--color-border);
     overflow-x: auto;
 }
+
 .card-preview__toolbar > .row {
     display: flex;
     width: 100%;
@@ -133,30 +134,20 @@
     flex-shrink: 1;
 }
 
-
-.card-preview__dimensions {
-    display: grid;
-    gap: 4px;
-    font-size: 0.9rem;
-    color: var(--color-text-secondary);
-    text-align: right;
-    position: absolute;
-    right: 12px;
-    bottom: 12px;
-    padding: 10px 12px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-    opacity: 0.85;
-    transition: opacity 0.2s ease;
-    pointer-events: none;
+.panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
-.card-preview__dimensions-row {
+.panel__header .card-preview__dimensions {
     display: flex;
     gap: 6px;
-    justify-content: flex-end;
+}
+.panel__header .card-preview__dimensions span {
+    padding: 2px 6px;
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 4px;
 }
 
 .card-preview__viewport:hover .card-preview__dimensions {

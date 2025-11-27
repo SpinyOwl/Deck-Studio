@@ -62,14 +62,4 @@ export const CardPreviewViewport: React.FC<CardPreviewViewportProps> = ({
       srcDoc={iframeDocument}
     />
   </div>
-  <div className="card-preview__dimensions" aria-label="Card dimensions">
-    <div className="card-preview__dimensions-row">
-      <span className="card-preview__dimensions-label">Size:</span>
-      <span>{Math.round(cardWidthPx)} × {Math.round(cardHeightPx)} px</span>
-    </div>
-    <div className="card-preview__dimensions-row">
-      <span className="card-preview__dimensions-label">Zoom:</span>
-      <span>{Math.round(zoom * 100)}%</span>
-    </div>
-  </div>
 </div>);

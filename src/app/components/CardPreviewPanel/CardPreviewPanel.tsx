@@ -50,7 +50,13 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, exportPro
   } = useCardPreview({project});
 
   return (<section className={`card-preview panel ${collapsed ? 'panel--collapsed' : 'panel--expanded'}`}>
-    <div className="panel__header">Card preview</div>
+    <div className="panel__header">
+      <div className="title">Card preview</div>
+      <div className="card-preview__dimensions" aria-label="Card dimensions">
+          <span title="Size" aria-label="Size">{Math.round(cardWidthPx)} × {Math.round(cardHeightPx)} px</span>
+          <span title="Zoom" aria-label="Zoom">{Math.round(zoom * 100)}%</span>
+      </div>
+    </div>
     <div className="panel__body">
       {exportProgress !== null && (
         <div className="card-preview__progress-bar">

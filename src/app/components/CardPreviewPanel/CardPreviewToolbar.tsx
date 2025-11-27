@@ -90,11 +90,10 @@ function handleSelectScroll(
   const direction = event.deltaY > 0 ? 1 : -1;
   const currentIndex = options.findIndex(option => option.value === value);
 
-  if (currentIndex === -1 || direction === 0) {
+  if (currentIndex === -1) {
     return;
   }
 
-  event.preventDefault();
   event.stopPropagation();
 
   const nextIndex = Math.min(Math.max(currentIndex + direction, 0), options.length - 1);
