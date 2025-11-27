@@ -250,7 +250,16 @@ export class TemplateRenderer {
       ...card,
     };
 
-    const withReplacements = Object.entries(replacements).reduce(
+    const normalizedReplacements = Object.entries(replacements).reduce<Record<string, string>>(
+      (normalized, [key, value]) => {
+        normalized[key] = this.normalizeTextValue(value);
+
+        return normalized;
+      },
+      {},
+    );
+
+    const withReplacements = Object.entries(normalizedReplacements).reduce(
       (rendered, [placeholder, value]) => this.replacePlaceholder(rendered, placeholder, value ?? ''),
       withLocalization,
     );
@@ -380,14 +389,18 @@ export class TemplateRenderer {
         for (const normalizedKey of normalizedKeys) {
           const localized = this.lookupLocalizationValue(messages, normalizedKey);
           if (localized !== undefined) {
-            return localized;
+            return this.normalizeTextValue(localized);
           }
         }
       }
 
       const fallback = this.resolveLocalizationFallback(trimmedKey, card);
 
-      return fallback ?? this.renderMissingLocalizationPlaceholder(trimmedKey);
+      if (fallback !== null) {
+        return this.normalizeTextValue(fallback);
+      }
+
+      return this.renderMissingLocalizationPlaceholder(trimmedKey);
     });
   }
 
@@ -516,6 +529,23 @@ export class TemplateRenderer {
     const pattern = new RegExp(`{{\\s*${this.escapeForRegex(placeholder)}\\s*}}`, 'g');
 
     return template.replace(pattern, value);
+  }
+
+  /**
+   * Normalizes textual values to preserve intended newlines when inserted into HTML.
+   *
+   * @param value - Value extracted from CSV or localization sources.
+   * @returns Text with escaped and platform-specific newlines converted to standard line breaks.
+   */
+  private normalizeTextValue(value: unknown): string {
+    if (value === undefined || value === null) {
+      return '';
+    }
+
+    const asString = String(value);
+    const withDecodedEscapes = asString.replace(/\\r\\n|\\n|\\r/g, '\n');
+
+    return withDecodedEscapes.replace(/\r\n?|\n/g, '\n');
   }
 
   /**

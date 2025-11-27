@@ -8,6 +8,7 @@ describe('TemplateRenderer', () => {
   const templateContents = new Map<string, string>([
     ['/project/templates/default.html', '<div>{{name}}</div>'],
     ['/project/templates/special.html', '<h1>{{t:card.name}}</h1><img src="./image.png">'],
+    ['/project/templates/multiline.html', '<div style="white-space: pre">{{description}}</div>'],
   ]);
   const files = {
     readTextFile: async (path: string) => templateContents.get(path) ?? '',
@@ -88,6 +89,33 @@ describe('TemplateRenderer', () => {
 
     assert.equal(resolved.length, 1);
     assert.match(resolved[0]!.html, /Indexed Name/);
+  });
+
+  test('renders escaped new line characters for preformatted text', async () => {
+    const templates = await renderer.loadProjectTemplates(
+      '/project',
+      undefined,
+      [{template: 'templates/multiline.html'}],
+      'template',
+    );
+
+    const resolved = await renderer.resolveCardTemplates(
+      [
+        {
+          id: 'multi',
+          description: 'First line\\nSecond line',
+          template: 'templates/multiline.html',
+        },
+      ],
+      templates,
+      'template',
+      'id',
+      null,
+      '/project',
+    );
+
+    assert.equal(resolved.length, 1);
+    assert.match(resolved[0]!.html, /First line\nSecond line/);
   });
 
   test('caches resolved HTML per card and locale until project reload', async () => {
