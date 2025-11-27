@@ -251,7 +251,7 @@ function App() {
     const delayMs =
       Math.max(MIN_AUTOSAVE_INTERVAL_SECONDS, autosaveSettings.intervalSeconds) * 1000;
 
-    autosaveTimerId.current = window.setTimeout(() => {
+    autosaveTimerId.current = setTimeout(() => {
       void performAutosaveRef.current();
     }, delayMs);
   }, [autosaveSettings, clearAutosaveTimer, project]);
