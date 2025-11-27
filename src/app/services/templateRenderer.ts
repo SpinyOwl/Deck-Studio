@@ -199,6 +199,7 @@ export class TemplateRenderer {
     const withLocalization = this.replaceLocalizationPlaceholders(
       templateContent,
       card,
+      index,
       localization,
       idColumn,
     );
@@ -316,6 +317,7 @@ export class TemplateRenderer {
    *
    * @param template - Template content potentially containing localization placeholders.
    * @param card - Card data providing IDs and CSV fallbacks.
+   * @param index - Zero-based index of the card used for localization fallbacks.
    * @param localization - Loaded localization bundle when available.
    * @param idColumn - Column name that holds card identifiers.
    * @returns Template content with localization placeholders replaced or gracefully downgraded.
@@ -323,6 +325,7 @@ export class TemplateRenderer {
   private replaceLocalizationPlaceholders(
     template: string,
     card: CardRecord,
+    index: number,
     localization: ProjectLocalization | null,
     idColumn: string,
   ): string {
@@ -332,11 +335,13 @@ export class TemplateRenderer {
 
     return template.replace(pattern, (_match, rawKey: string) => {
       const trimmedKey = rawKey.trim();
-      const normalizedKey = this.normalizeLocalizationKey(trimmedKey, cardId);
+      const normalizedKeys = this.normalizeLocalizationKeys(trimmedKey, cardId, index);
       if (messages) {
-        const localized = this.lookupLocalizationValue(messages, normalizedKey);
-        if (localized !== undefined) {
-          return localized;
+        for (const normalizedKey of normalizedKeys) {
+          const localized = this.lookupLocalizationValue(messages, normalizedKey);
+          if (localized !== undefined) {
+            return localized;
+          }
         }
       }
 
@@ -346,16 +351,25 @@ export class TemplateRenderer {
     });
   }
 
-  private normalizeLocalizationKey(key: string, cardId?: string): string {
+  private normalizeLocalizationKeys(key: string, cardId: string | undefined, index: number): string[] {
     const [namespace, ...segments] = key.split('.');
 
     if (namespace === 'card' && segments.length > 0 && cardId) {
       const remainder = segments.join('.');
 
-      return `cards.${cardId}.${remainder}`;
+      return [
+        `cards.${cardId}.${remainder}`,
+        `cards.${index + 1}.${remainder}`
+      ];
     }
 
-    return key;
+    if (namespace === 'card' && segments.length > 0) {
+      const remainder = segments.join('.');
+
+      return [`cards.${index + 1}.${remainder}`];
+    }
+
+    return [key];
   }
 
   /**
