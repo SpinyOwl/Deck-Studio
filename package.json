@@ -15,7 +15,6 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@vitejs/plugin-react-swc": "^4.2.2",
-    "active-table-react": "^1.1.7",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.4",
     "monaco-editor": "^0.55.1",

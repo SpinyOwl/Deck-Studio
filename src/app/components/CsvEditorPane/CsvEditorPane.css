@@ -1,3 +1,4 @@
+/* src/components/CsvEditorPane/CsvEditorPane.css */
 :root {
     --table-bg-color: var(--color-surface-raised);
     --table-text-color: var(--color-text-primary);
@@ -8,7 +9,6 @@
     --cell-border-color: var(--color-border-subtle)
 }
 
-/* src/components/CsvEditorPane/CsvEditorPane.css */
 .csv-editor {
     display: flex;
     flex-direction: column;
@@ -19,14 +19,39 @@
     border-radius: 4px;
 }
 
-.csv-editor__table {
-    width: 100%;
-    height: 100%;
+.csv-editor .monaco-editor {
+    border-radius: 4px;
 }
 
-.csv-editor__table .table-wrapper {
-    background-color: inherit;
+.csv-editor .monaco-editor .margin,
+.csv-editor .monaco-editor .minimap,
+.csv-editor .monaco-editor .view-overlays,
+.csv-editor .monaco-editor .view-lines {
+    background-color: #1f1f1f;
 }
-#overflow-container {
-    height: 100%;
+
+/* Rainbow column highlights */
+.csv-column-color-0 { background-color: rgba(255, 99, 132, 0.12); }
+.csv-column-color-1 { background-color: rgba(54, 162, 235, 0.12); }
+.csv-column-color-2 { background-color: rgba(255, 206, 86, 0.12); }
+.csv-column-color-3 { background-color: rgba(75, 192, 192, 0.12); }
+.csv-column-color-4 { background-color: rgba(153, 102, 255, 0.12); }
+.csv-column-color-5 { background-color: rgba(255, 159, 64, 0.12); }
+.csv-column-color-6 { background-color: rgba(255, 99, 71, 0.12); }
+.csv-column-color-7 { background-color: rgba(144, 238, 144, 0.12); }
+.csv-column-color-8 { background-color: rgba(221, 160, 221, 0.12); }
+.csv-column-color-9 { background-color: rgba(135, 206, 235, 0.12); }
+.csv-column-color-10 { background-color: rgba(255, 218, 185, 0.12); }
+.csv-column-color-11 { background-color: rgba(176, 196, 222, 0.12); }
+.csv-column-color-12 { background-color: rgba(240, 230, 140, 0.12); }
+.csv-column-color-13 { background-color: rgba(127, 255, 212, 0.12); }
+.csv-column-color-14 { background-color: rgba(218, 112, 214, 0.12); }
+.csv-column-color-15 { background-color: rgba(173, 216, 230, 0.12); }
+.csv-column-color-16 { background-color: rgba(250, 128, 114, 0.12); }
+.csv-column-color-17 { background-color: rgba(189, 183, 107, 0.12); }
+.csv-column-color-18 { background-color: rgba(152, 251, 152, 0.12); }
+.csv-column-color-19 { background-color: rgba(199, 21, 133, 0.12); }
+
+.csv-editor .monaco-editor .line-numbers {
+    color: rgba(255, 255, 255, 0.6);
 }

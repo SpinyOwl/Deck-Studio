@@ -1,6 +1,7 @@
 // src/utils/csv.ts
 import Papa from 'papaparse';
 
+export const CSV_DELIMITER = ',';
 export type CsvGrid = string[][];
 
 /**
@@ -32,6 +33,7 @@ export function normalizeCsvGrid(data: unknown): CsvGrid {
  */
 export function parseCsvGrid(content: string): CsvGrid {
   const {data, errors} = Papa.parse<string[]>(content, {
+    delimiter: CSV_DELIMITER,
     skipEmptyLines: false,
   });
 
@@ -55,16 +57,16 @@ export function stringifyCsvGrid(data: CsvGrid): string {
     return '';
   }
 
-  let result = '';
-
-  for (let i = 0; i < data.length; i++) {
-    const element = data[i];
-    for (let j = 0; j < element.length; j++) {
-      result += element[j];
-      if (j < element.length - 1) result += ',';
-    }
-    if (i < data.length - 1) result += '\n';
-  }
-
-  return result;
+  return Papa.unparse(data, {
+    delimiter: CSV_DELIMITER,
+    escapeChar: '"',
+    newline: '\n',
+    quoteChar: '"',
+    quotes: (value: unknown) =>
+      typeof value === 'string'
+      && (value.includes(CSV_DELIMITER)
+        || /\r|\n|"/.test(value)
+        || /^\s|\s$/.test(value)),
+    skipEmptyLines: false,
+  });
 }

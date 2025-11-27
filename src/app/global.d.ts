@@ -1,8 +1,6 @@
 // src/global.d.ts
-import type React from 'react';
 import type {FileNode} from './types/files';
 import type {LayoutState} from './types/layout';
-import type {CsvGrid} from './utils/csv';
 
 export {};
 
@@ -30,23 +28,5 @@ declare global {
       copyTemplateProject(destinationPath: string): Promise<boolean>;
       showWarning(message: string): Promise<void>;
     };
-  }
-
-  interface ActiveTableElement extends HTMLElement {
-    data?: CsvGrid;
-    onDataChange?: (data: CsvGrid) => void;
-  }
-
-  interface HTMLElementTagNameMap {
-    'active-table': ActiveTableElement;
-  }
-
-  namespace JSX {
-    interface IntrinsicElements {
-      'active-table': React.DetailedHTMLProps<
-        React.HTMLAttributes<ActiveTableElement>,
-        ActiveTableElement
-      > & { data?: CsvGrid };
-    }
   }
 }
