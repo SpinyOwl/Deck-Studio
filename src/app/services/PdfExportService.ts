@@ -264,6 +264,7 @@ class PdfExportService {
         scale: dpi / 96,
         width: cardWidthPx,
         height: cardHeightPx,
+        foreignObjectRendering: true,
       });
 
       const imgData = canvas.toDataURL('image/png');
