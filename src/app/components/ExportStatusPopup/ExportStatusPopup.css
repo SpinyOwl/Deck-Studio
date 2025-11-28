@@ -98,6 +98,27 @@
   line-height: 1;
 }
 
+.export-status__spinner {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid #1f2937;
+  border-top-color: #38bdf8;
+  animation: export-status__spin 0.9s linear infinite;
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+@keyframes export-status__spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .export-status__step-body {
   flex: 1;
 }

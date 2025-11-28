@@ -118,10 +118,14 @@ class PdfExportService {
         margin,
         images: renderedImages,
         pdfPath,
+        stepId: assembleStepId,
       });
 
       if (pdfCreated) {
-        exportStatusService.completeStep(assembleStepId, 'PDF saved to output directory');
+        exportStatusService.completeStep(
+          assembleStepId,
+          `Added ${renderedImages.length} of ${renderedImages.length} images • PDF saved to output directory`,
+        );
         exportStatusService.completeExport();
         logService.info(`Successfully exported PDF to ${pdfPath}`);
       } else {
@@ -338,6 +342,7 @@ class PdfExportService {
     margin: number;
     borderColor: string;
     borderThickness: number;
+    stepId: string;
   }): Promise<boolean> {
     const {
       images,
@@ -349,6 +354,7 @@ class PdfExportService {
       margin,
       borderColor,
       borderThickness,
+      stepId,
     } = params;
 
     const pdfDoc = await PDFDocument.create();
@@ -366,6 +372,8 @@ class PdfExportService {
     let x = marginPts;
     let y = pageHeight - marginPts - cardHeightPts;
     let placedImages = 0;
+
+    exportStatusService.updateStepDetail(stepId, `Added ${placedImages} of ${images.length} images`);
 
     for (const image of images) {
       try {
@@ -406,6 +414,7 @@ class PdfExportService {
 
         x += cardWidthPts + marginPts;
         placedImages++;
+        exportStatusService.updateStepDetail(stepId, `Added ${placedImages} of ${images.length} images`);
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         logService.error(`Failed to add image for card "${image.card.card.id}" to PDF: ${reason}`);

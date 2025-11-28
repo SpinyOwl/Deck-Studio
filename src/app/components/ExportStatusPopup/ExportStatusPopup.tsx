@@ -32,16 +32,18 @@ export function ExportStatusPopup(): React.ReactElement | null {
     return 'Exporting deck…';
   }, [status.result]);
 
-  const renderIcon = (step: ExportStep): string => {
+  const renderIcon = (step: ExportStep): React.ReactElement => {
     if (step.status === 'completed') {
-      return 'check_circle';
+      return (
+        <span className="material-symbols-outlined" aria-hidden="true">check_circle</span>
+      );
     }
 
     if (step.status === 'failed') {
-      return 'error';
+      return <span className="material-symbols-outlined" aria-hidden="true">error</span>;
     }
 
-    return 'pending';
+    return <span className="export-status__spinner" aria-hidden="true" />;
   };
 
   if (!isActive) {
@@ -67,7 +69,7 @@ export function ExportStatusPopup(): React.ReactElement | null {
         <ol className="export-status__steps" aria-live="polite">
           {status.steps.map(step => (
             <li key={step.id} className="export-status__step" data-status={step.status}>
-              <span className="material-symbols-outlined" aria-hidden="true">{renderIcon(step)}</span>
+              {renderIcon(step)}
               <div className="export-status__step-body">
                 <p className="export-status__step-label">{step.label}</p>
                 {step.detail ? <p className="export-status__step-detail">{step.detail}</p> : null}
