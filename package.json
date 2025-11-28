@@ -16,7 +16,6 @@
     "@monaco-editor/react": "^4.7.0",
     "@vitejs/plugin-react-swc": "^4.2.2",
     "dom-to-image-more": "^3.7.2",
-    "html2canvas": "^1.4.1",
     "jspdf": "^3.0.4",
     "monaco-editor": "^0.55.1",
     "papaparse": "^5.5.3",

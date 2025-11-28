@@ -1,5 +1,5 @@
 import {PageSizes, PDFDocument, rgb} from 'pdf-lib';
-import html2canvas from 'html2canvas';
+import domToImage from 'dom-to-image-more';
 import {buildPreviewDocument} from '../components/CardPreviewPanel/useCardPreview';
 import {type PdfExportConfig, type Project, type ResolvedCard} from '../types/project';
 import {logService} from './LogService';
@@ -260,16 +260,18 @@ class PdfExportService {
       await this.waitForAssetsToLoad(iframeWindow);
 
       const body = iframeWindow.document.body;
-      const canvas = await html2canvas(body, {
-        useCORS: true,
-        allowTaint: true,
-        scale: dpi / 96,
-        width: cardWidthPx,
-        height: cardHeightPx,
-        foreignObjectRendering: true,
+      const scale = dpi / 96;
+      const imgData = await domToImage.toPng(body, {
+        width: cardWidthPx * scale,
+        height: cardHeightPx * scale,
+        style: {
+          transform: `scale(${scale})`,
+          transformOrigin: 'top left',
+          width: `${cardWidthPx}px`,
+          height: `${cardHeightPx}px`,
+        },
       });
 
-      const imgData = canvas.toDataURL('image/png');
       const base64 = imgData.substring(imgData.indexOf(',') + 1);
       await window.api.writeBinaryFile(imagePath, base64);
 
