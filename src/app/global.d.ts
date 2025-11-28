@@ -5,6 +5,13 @@ import type {LayoutState} from './types/layout';
 export {};
 
 declare global {
+  // Minimal NodeJS namespace definitions required for the test configuration.
+  namespace NodeJS {
+    interface ErrnoException extends Error {
+      code?: string;
+    }
+  }
+
   interface Window {
     api: {
       selectProjectFolder(): Promise<{ rootPath: string; tree: FileNode[] } | null>;

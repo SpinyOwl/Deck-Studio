@@ -9,6 +9,12 @@ import {exportStatusService} from './ExportStatusService';
 type RenderedCardImage = {
   card: ResolvedCard;
   imagePath: string;
+  size: {
+    widthPx: number;
+    heightPx: number;
+    widthMm: number;
+    heightMm: number;
+  };
 };
 
 class PdfExportService {
@@ -60,8 +66,6 @@ class PdfExportService {
       return;
     }
 
-    const cardWidthMm = (cardWidthPx / dpi) * 25.4;
-    const cardHeightMm = (cardHeightPx / dpi) * 25.4;
     const margin = (pdfConfig?.margin ?? 0) + (borderThickness * 2);
     const totalCards = project.resolvedCards.length;
     const renderedImages: RenderedCardImage[] = [];
@@ -111,8 +115,6 @@ class PdfExportService {
       const pdfCreated = await this.composePdfFromImages({
         pageSize,
         orientation,
-        cardWidthMm,
-        cardHeightMm,
         borderColor,
         borderThickness,
         margin,
@@ -271,7 +273,16 @@ class PdfExportService {
       const base64 = imgData.substring(imgData.indexOf(',') + 1);
       await window.api.writeBinaryFile(imagePath, base64);
 
-      return {card, imagePath};
+      return {
+        card,
+        imagePath,
+        size: {
+          widthPx: cardWidthPx,
+          heightPx: cardHeightPx,
+          widthMm: this.pxToMm(cardWidthPx, dpi),
+          heightMm: this.pxToMm(cardHeightPx, dpi),
+        },
+      };
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to render card "${card.card.id}" to image: ${reason}`);
@@ -338,8 +349,6 @@ class PdfExportService {
     pdfPath: string;
     pageSize: string;
     orientation: PdfExportConfig['orientation'];
-    cardWidthMm: number;
-    cardHeightMm: number;
     margin: number;
     borderColor: string;
     borderThickness: number;
@@ -350,8 +359,6 @@ class PdfExportService {
       pdfPath,
       pageSize,
       orientation,
-      cardWidthMm,
-      cardHeightMm,
       margin,
       borderColor,
       borderThickness,
@@ -364,15 +371,38 @@ class PdfExportService {
     let pageWidth = page.getWidth();
     let pageHeight = page.getHeight();
 
+    const {widthMm: cardWidthMm, heightMm: cardHeightMm} = images[0]?.size ?? {
+      widthMm: 0,
+      heightMm: 0,
+    };
+
+    if (cardWidthMm <= 0 || cardHeightMm <= 0) {
+      logService.error('Invalid card dimensions encountered while composing PDF.');
+      return false;
+    }
+
     const cardWidthPts = this.mmToPoints(cardWidthMm);
     const cardHeightPts = this.mmToPoints(cardHeightMm);
     const marginPts = this.mmToPoints(margin);
     const borderThicknessPts = this.mmToPoints(borderThickness);
     const color = this.hexToRgb(borderColor);
 
-    let x = marginPts;
-    let y = pageHeight - marginPts - cardHeightPts;
+    let layout = this.calculateGridLayout({
+      pageWidthPts: pageWidth,
+      pageHeightPts: pageHeight,
+      cardWidthPts,
+      cardHeightPts,
+      marginPts,
+    });
+
+    if (layout.columns === 0 || layout.rows === 0) {
+      logService.error('Card dimensions and margins exceed the page size.');
+      return false;
+    }
+
     let placedImages = 0;
+    let positionInPage = 0;
+    const maxPerPage = layout.columns * layout.rows;
 
     exportStatusService.updateStepDetail(stepId, `Added ${placedImages} of ${images.length} images`);
 
@@ -382,18 +412,31 @@ class PdfExportService {
         const pngBytes = this.base64ToUint8Array(base64Image);
         const pngImage = await pdfDoc.embedPng(pngBytes);
 
-        if (x + cardWidthPts > pageWidth - marginPts) {
-          x = marginPts;
-          y -= cardHeightPts + marginPts;
-        }
-
-        if (y < marginPts) {
+        if (positionInPage >= maxPerPage) {
           page = pdfDoc.addPage(this.resolvePageSize(pageSize, orientation));
           pageWidth = page.getWidth();
           pageHeight = page.getHeight();
-          x = marginPts;
-          y = pageHeight - marginPts - cardHeightPts;
+          layout = this.calculateGridLayout({
+            pageWidthPts: pageWidth,
+            pageHeightPts: pageHeight,
+            cardWidthPts,
+            cardHeightPts,
+            marginPts,
+          });
+
+          if (layout.columns === 0 || layout.rows === 0) {
+            logService.error('Card dimensions and margins exceed the page size.');
+            return false;
+          }
+
+          positionInPage = 0;
         }
+
+        const column = positionInPage % layout.columns;
+        const row = Math.floor(positionInPage / layout.columns);
+
+        const x = layout.xOffset + column * (cardWidthPts + marginPts);
+        const y = pageHeight - layout.yOffset - cardHeightPts - row * (cardHeightPts + marginPts);
 
         page.drawImage(pngImage, {
           x,
@@ -413,7 +456,7 @@ class PdfExportService {
           });
         }
 
-        x += cardWidthPts + marginPts;
+        positionInPage += 1;
         placedImages++;
         exportStatusService.updateStepDetail(stepId, `Added ${placedImages} of ${images.length} images`);
       } catch (error) {
@@ -513,6 +556,17 @@ class PdfExportService {
   }
 
   /**
+   * Converts pixels to millimeters using the provided DPI value.
+   *
+   * @param px - Measurement in pixels.
+   * @param dpi - Dots per inch used for rendering.
+   * @returns Measurement in millimeters.
+   */
+  private pxToMm(px: number, dpi: number): number {
+    return (px / dpi) * 25.4;
+  }
+
+  /**
    * Converts millimeters to PDF points.
    *
    * @param mm - Measurement in millimeters.
@@ -586,6 +640,37 @@ class PdfExportService {
     const b = bigint & 255;
 
     return rgb(r / 255, g / 255, b / 255);
+  }
+
+  /**
+   * Calculates how many cards fit on a page and the offset needed to center them.
+   *
+   * @param params - Measurements in PDF points used for layout calculations.
+   * @returns Grid layout describing capacity and starting offsets.
+   */
+  private calculateGridLayout(params: {
+    pageWidthPts: number;
+    pageHeightPts: number;
+    cardWidthPts: number;
+    cardHeightPts: number;
+    marginPts: number;
+  }): {columns: number; rows: number; xOffset: number; yOffset: number} {
+    const {pageWidthPts, pageHeightPts, cardWidthPts, cardHeightPts, marginPts} = params;
+
+    const columns = Math.floor((pageWidthPts + marginPts) / (cardWidthPts + marginPts));
+    const rows = Math.floor((pageHeightPts + marginPts) / (cardHeightPts + marginPts));
+
+    if (columns === 0 || rows === 0) {
+      return {columns: 0, rows: 0, xOffset: 0, yOffset: 0};
+    }
+
+    const totalWidth = columns * cardWidthPts + (columns - 1) * marginPts;
+    const totalHeight = rows * cardHeightPts + (rows - 1) * marginPts;
+
+    const xOffset = Math.max((pageWidthPts - totalWidth) / 2, 0);
+    const yOffset = Math.max((pageHeightPts - totalHeight) / 2, 0);
+
+    return {columns, rows, xOffset, yOffset};
   }
 }
 

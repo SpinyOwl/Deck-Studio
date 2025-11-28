@@ -9,7 +9,7 @@
     "verbatimModuleSyntax": false,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "types": ["node"]
+    "types": []
   },
   "include": [
     "src/app/services/**/*.ts",
