@@ -1,0 +1,115 @@
+.export-status__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 15, 26, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.export-status {
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  min-width: 360px;
+  max-width: 480px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  padding: 20px;
+}
+
+.export-status__header {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.export-status__badge {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  display: grid;
+  place-items: center;
+  color: #0f172a;
+  flex: 0 0 48px;
+}
+
+.export-status__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.export-status__eyebrow {
+  text-transform: uppercase;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.export-status__title {
+  font-size: 20px;
+  margin: 0;
+  color: #e2e8f0;
+}
+
+.export-status__error {
+  color: #f87171;
+  margin: 0;
+  font-size: 14px;
+}
+
+.export-status__steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.export-status__step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px;
+  border-radius: 10px;
+  background: #111827;
+  border: 1px solid #1f2937;
+}
+
+.export-status__step[data-status='completed'] {
+  border-color: #22c55e;
+}
+
+.export-status__step[data-status='failed'] {
+  border-color: #ef4444;
+}
+
+.export-status__step .material-symbols-outlined {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.export-status__step-body {
+  flex: 1;
+}
+
+.export-status__step-label {
+  margin: 0;
+  font-size: 15px;
+  color: #e2e8f0;
+}
+
+.export-status__step-detail {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #cbd5e1;
+}

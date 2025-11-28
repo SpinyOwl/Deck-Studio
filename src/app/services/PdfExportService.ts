@@ -4,6 +4,7 @@ import {buildPreviewDocument} from '../components/CardPreviewPanel/useCardPrevie
 import {type PdfExportConfig, type Project, type ResolvedCard} from '../types/project';
 import {logService} from './LogService';
 import {joinPathSegments} from '../utils/path';
+import {exportStatusService} from './ExportStatusService';
 
 type RenderedCardImage = {
   card: ResolvedCard;
@@ -35,8 +36,18 @@ class PdfExportService {
     const imagesDirectory = joinPathSegments(outputDirectory, 'images');
     const pdfPath = joinPathSegments(outputDirectory, 'deck.pdf');
 
-    await this.ensureDirectoryExists(outputDirectory);
-    await this.ensureDirectoryExists(imagesDirectory);
+    exportStatusService.beginExport();
+    const prepareDirectoriesStepId = exportStatusService.startStep('Prepare export directories');
+
+    try {
+      await this.ensureDirectoryExists(outputDirectory);
+      await this.ensureDirectoryExists(imagesDirectory);
+      exportStatusService.completeStep(prepareDirectoriesStepId);
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      exportStatusService.failStep(prepareDirectoriesStepId, reason);
+      throw error;
+    }
 
     const previewContainer = this.createOffscreenContainer(cardWidthPx, cardHeightPx);
     const iframe = this.createOffscreenIframe(previewContainer, cardWidthPx, cardHeightPx);
@@ -45,6 +56,7 @@ class PdfExportService {
     if (!iframeWindow) {
       logService.error('Preview iframe not found. Aborting PDF export.');
       this.removeOffscreenContainer(previewContainer);
+      exportStatusService.failExport('Preview iframe not found. Aborting PDF export.');
       return;
     }
 
@@ -53,6 +65,8 @@ class PdfExportService {
     const margin = (pdfConfig?.margin ?? 0) + (borderThickness * 2);
     const totalCards = project.resolvedCards.length;
     const renderedImages: RenderedCardImage[] = [];
+
+    const renderImagesStepId = exportStatusService.startStep('Render card images');
 
     try {
       for (const [index, card] of project.resolvedCards.entries()) {
@@ -76,8 +90,24 @@ class PdfExportService {
         }
 
         onProgress((index + 1) / totalCards);
+        exportStatusService.updateStepDetail(
+          renderImagesStepId,
+          `Rendered ${index + 1} of ${totalCards}`,
+        );
       }
 
+      if (renderedImages.length === 0) {
+        const message = 'No card images were rendered.';
+        exportStatusService.failStep(renderImagesStepId, message);
+        throw new Error(message);
+      }
+
+      exportStatusService.completeStep(
+        renderImagesStepId,
+        `Rendered ${renderedImages.length} of ${totalCards} cards`,
+      );
+
+      const assembleStepId = exportStatusService.startStep('Assemble PDF document');
       const pdfCreated = await this.composePdfFromImages({
         pageSize,
         orientation,
@@ -91,10 +121,20 @@ class PdfExportService {
       });
 
       if (pdfCreated) {
+        exportStatusService.completeStep(assembleStepId, 'PDF saved to output directory');
+        exportStatusService.completeExport();
         logService.info(`Successfully exported PDF to ${pdfPath}`);
       } else {
-        logService.error('PDF export failed because no images were added to the document.');
+        const message = 'PDF export failed because no images were added to the document.';
+        exportStatusService.failStep(assembleStepId, message);
+        logService.error(message);
       }
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      if (exportStatusService.getStatus().result !== 'error') {
+        exportStatusService.failExport(reason);
+      }
+      throw error;
     } finally {
       this.removeOffscreenContainer(previewContainer);
     }

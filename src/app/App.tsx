@@ -32,6 +32,7 @@ import './styles/AppLayout.css';
 import './styles/Panel.css';
 import { pdfExportService } from './services/PdfExportService';
 import { NotificationPopup } from './components/NotificationPopup/NotificationPopup';
+import { ExportStatusPopup } from './components/ExportStatusPopup';
 
 const MIN_TREE_PANEL_SIZE = 150;
 const MIN_PREVIEW_PANEL_SIZE = 250;
@@ -1390,6 +1391,7 @@ function App() {
         onClose={handleCloseSettings}
         onSave={handleSaveSettings}
       />
+      <ExportStatusPopup />
       <NotificationPopup />
     </div>
   );
