@@ -59,7 +59,7 @@ interface CardPreviewControls {
  * @param html - Raw HTML for a single card.
  * @returns Complete HTML document string.
  */
-function buildPreviewDocument(html: string): string {
+export function buildPreviewDocument(html: string): string {
   return `<!doctype html>
 <html>
 <head>
