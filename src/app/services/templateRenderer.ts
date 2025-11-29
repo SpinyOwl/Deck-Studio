@@ -3,12 +3,14 @@ import {
   type CardRecord,
   type LoadedTemplate,
   type LocalizationMessages,
+  type ProjectConfig,
   type ProjectLocalization,
   type ProjectTemplates,
   type ResolvedCard,
 } from '../types/project';
 import {logService} from './LogService';
 import {fileService, type FileService} from './FileService';
+import {resolveCardDimensions} from '../utils/cardDimensions';
 
 /**
  * Loads templates and renders cards using provided data and localization.
@@ -102,6 +104,7 @@ export class TemplateRenderer {
    * @param idColumn - Column name containing the card identifier.
    * @param localization - Localization bundle to use for rendering.
    * @param rootPath - Absolute path to the project root for resolving relative assets.
+   * @param config - Project configuration used to derive card dimensions.
    * @returns Collection of resolved cards containing rendered HTML.
    */
   public async resolveCardTemplates(
@@ -111,6 +114,7 @@ export class TemplateRenderer {
     idColumn: string,
     localization: ProjectLocalization | null,
     rootPath: string,
+    config: ProjectConfig | null,
   ): Promise<ResolvedCard[]> {
     if (!cards || cards.length === 0) {
       return [];
@@ -127,6 +131,7 @@ export class TemplateRenderer {
         idColumn,
         localization,
         rootPath,
+        config,
       );
       if (rendered) {
         resolved.push(rendered);
@@ -146,6 +151,7 @@ export class TemplateRenderer {
    * @param idColumn - Column name containing the card identifier.
    * @param localization - Loaded localization bundle when available.
    * @param rootPath - Absolute path to the project root used to resolve relative assets.
+   * @param config - Project configuration used to derive card dimensions.
    * @returns Resolved card metadata and HTML, or null when no template is available.
    */
   async resolveCardTemplate(
@@ -156,8 +162,9 @@ export class TemplateRenderer {
     idColumn: string,
     localization: ProjectLocalization | null,
     rootPath: string,
+    config: ProjectConfig | null,
   ): Promise<ResolvedCard | null> {
-    const cacheKey = this.buildResolvedCacheKey(card, index, localization?.locale, rootPath);
+    const cacheKey = this.buildResolvedCacheKey(card, index, localization?.locale, rootPath, config);
     const cached = this.resolvedHtmlCache.get(cacheKey);
     if (cached) {
       return {...cached};
@@ -190,7 +197,15 @@ export class TemplateRenderer {
     const html = this.renderCardHtml(template.content, card, index, localization, idColumn);
     const resolvedHtml = await this.resolveRelativeLinks(html, rootPath);
     const templatePath = cardTemplate && requestedPath ? requestedPath : template.path;
-    const resolvedCard: ResolvedCard = {index, html: resolvedHtml, templatePath, card};
+    const dimensions = resolveCardDimensions(card, config);
+    const resolvedCard: ResolvedCard = {
+      index,
+      html: resolvedHtml,
+      templatePath,
+      card,
+      widthPx: dimensions.width,
+      heightPx: dimensions.height,
+    };
 
     this.resolvedHtmlCache.set(cacheKey, resolvedCard);
 
@@ -211,12 +226,19 @@ export class TemplateRenderer {
     index: number,
     locale: string | undefined,
     rootPath: string,
+    config: ProjectConfig | null,
   ): string {
     const normalizedLocale = locale ?? 'default';
     const sortedKeys = Object.keys(card).sort();
     const cardSignature = sortedKeys.map(key => `${key}:${card[key] ?? ''}`).join('|');
+    const layoutSignature = [
+      config?.layout?.width ?? '',
+      config?.layout?.height ?? '',
+      config?.csv?.widthColumn ?? '',
+      config?.csv?.heightColumn ?? '',
+    ].join('|');
 
-    return `${rootPath}::${normalizedLocale}::${index}::${cardSignature}`;
+    return `${rootPath}::${normalizedLocale}::${index}::${cardSignature}::${layoutSignature}`;
   }
 
   /**

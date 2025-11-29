@@ -3,6 +3,7 @@ import {after, before, beforeEach, describe, test} from 'node:test';
 import {TemplateRenderer} from './templateRenderer';
 import {type FileService} from './FileService';
 import {logService} from './LogService';
+import {type ProjectConfig} from '../types/project';
 
 describe('TemplateRenderer', () => {
   const templateContents = new Map<string, string>([
@@ -16,6 +17,9 @@ describe('TemplateRenderer', () => {
   const renderer = new TemplateRenderer(files);
   const originalWindow = globalThis.window;
   const originalLog = logService.info;
+  const config: ProjectConfig = {
+    layout: {width: 750, height: 1050},
+  };
 
   before(() => {
     globalThis.window = {
@@ -63,7 +67,7 @@ describe('TemplateRenderer', () => {
       },
     ], templates, 'template', 'id', {
       locale: 'en', availableLocales: ['en'], messages: {cards: {123: {name: 'Localized Name'}}},
-    }, '/project');
+    }, '/project', config);
 
     assert.equal(resolved.length, 1);
     assert.match(resolved[0]!.html, /Localized Name/);
@@ -85,10 +89,45 @@ describe('TemplateRenderer', () => {
       },
     ], templates, 'template', 'id', {
       locale: 'en', availableLocales: ['en'], messages: {cards: {1: {name: 'Indexed Name'}}},
-    }, '/project');
+    }, '/project', config);
 
     assert.equal(resolved.length, 1);
     assert.match(resolved[0]!.html, /Indexed Name/);
+  });
+
+  test('attaches resolved dimensions from the card data', async () => {
+    const dimensionConfig: ProjectConfig = {
+      layout: {width: 600, height: 900},
+      csv: {widthColumn: 'width', heightColumn: 'height'},
+    };
+    const templates = await renderer.loadProjectTemplates(
+      '/project',
+      'templates/default.html',
+      [{template: 'templates/special.html'}],
+      'template',
+    );
+
+    const [resolved] = await renderer.resolveCardTemplates(
+      [
+        {
+          id: 'size-test',
+          name: 'Sized Card',
+          template: 'templates/special.html',
+          width: '812',
+          height: '1024',
+        },
+      ],
+      templates,
+      'template',
+      'id',
+      null,
+      '/project',
+      dimensionConfig,
+    );
+
+    assert.ok(resolved);
+    assert.equal(resolved!.widthPx, 812);
+    assert.equal(resolved!.heightPx, 1024);
   });
 
   test('renders escaped new line characters for preformatted text', async () => {
@@ -112,6 +151,7 @@ describe('TemplateRenderer', () => {
       'id',
       null,
       '/project',
+      config,
     );
 
     assert.equal(resolved.length, 1);
@@ -133,7 +173,15 @@ describe('TemplateRenderer', () => {
       availableLocales: ['en'],
       messages: {cards: {123: {name: 'Localized Name'}}},
     };
-    await renderer.resolveCardTemplates(cards, templates, 'template', 'id', localization, '/project');
+    await renderer.resolveCardTemplates(
+      cards,
+      templates,
+      'template',
+      'id',
+      localization,
+      '/project',
+      config,
+    );
 
     let resolveCalls = 0;
     globalThis.window = {
@@ -146,7 +194,15 @@ describe('TemplateRenderer', () => {
       },
     } as unknown as typeof globalThis.window;
 
-    const resolved = await renderer.resolveCardTemplates(cards, templates, 'template', 'id', localization, '/project');
+    const resolved = await renderer.resolveCardTemplates(
+      cards,
+      templates,
+      'template',
+      'id',
+      localization,
+      '/project',
+      config,
+    );
 
     assert.equal(resolveCalls, 0);
     assert.match(resolved[0]!.html, /Localized Name/);

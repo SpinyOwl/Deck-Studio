@@ -139,6 +139,8 @@ export interface ResolvedCard {
   html: string;
   templatePath: string;
   card: CardRecord;
+  widthPx: number;
+  heightPx: number;
 }
 
 /**

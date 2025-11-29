@@ -74,6 +74,7 @@ export class ProjectService {
       idColumn,
       localization,
       project.rootPath,
+      project.config,
     );
 
     return {
@@ -112,6 +113,7 @@ export class ProjectService {
       idColumn,
       localization,
       selection.rootPath,
+      config,
     );
 
     return {
