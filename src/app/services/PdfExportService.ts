@@ -358,7 +358,9 @@ class PdfExportService {
       stepId,
     } = params;
 
-    const pdfDoc = await PDFDocument.create();
+    await this.createEmptyPdfFile(pdfPath);
+
+    let pdfDoc = await this.loadPdfDocument(pdfPath);
     let page = pdfDoc.addPage(this.resolvePageSize(pageSize, orientation));
 
     let pageWidth = page.getWidth();
@@ -378,6 +380,21 @@ class PdfExportService {
     let positionInPage = 0;
     let maxPerPage = 0;
 
+    const persistDocument = async (): Promise<void> => {
+      await this.savePdfDocument(pdfDoc, pdfPath);
+      pdfDoc = await this.loadPdfDocument(pdfPath);
+    };
+
+    const addNewPage = async (): Promise<void> => {
+      if (pdfDoc.getPageCount() > 0) {
+        await persistDocument();
+      }
+
+      page = pdfDoc.addPage(this.resolvePageSize(pageSize, orientation));
+      pageWidth = page.getWidth();
+      pageHeight = page.getHeight();
+    };
+
     exportStatusService.updateStepDetail(stepId, `Added ${placedImages} of ${images.length} images`);
 
     for (const image of images) {
@@ -394,9 +411,10 @@ class PdfExportService {
           || image.size.heightMm !== currentCardHeightMm;
 
         if (requiresNewLayout) {
-          page = placedImages === 0 ? page : pdfDoc.addPage(this.resolvePageSize(pageSize, orientation));
-          pageWidth = page.getWidth();
-          pageHeight = page.getHeight();
+          if (placedImages > 0) {
+            await addNewPage();
+          }
+
           currentCardWidthMm = image.size.widthMm;
           currentCardHeightMm = image.size.heightMm;
           cardWidthPts = this.mmToPoints(currentCardWidthMm);
@@ -417,9 +435,8 @@ class PdfExportService {
           maxPerPage = layout.columns * layout.rows;
           positionInPage = 0;
         } else if (positionInPage >= maxPerPage) {
-          page = pdfDoc.addPage(this.resolvePageSize(pageSize, orientation));
-          pageWidth = page.getWidth();
-          pageHeight = page.getHeight();
+          await addNewPage();
+
           layout = this.calculateGridLayout({
             pageWidthPts: pageWidth,
             pageHeightPts: pageHeight,
@@ -479,10 +496,43 @@ class PdfExportService {
       return false;
     }
 
-    const base64Pdf = await pdfDoc.saveAsBase64({dataUri: false});
-    await window.api.writeBinaryFile(pdfPath, base64Pdf);
+    await persistDocument();
 
     return true;
+  }
+
+  /**
+   * Initializes an empty PDF file on disk to support incremental page creation.
+   *
+   * @param pdfPath - Absolute path where the PDF should be created.
+   */
+  private async createEmptyPdfFile(pdfPath: string): Promise<void> {
+    const pdfDoc = await PDFDocument.create();
+    await this.savePdfDocument(pdfDoc, pdfPath);
+  }
+
+  /**
+   * Loads a PDF document from disk using the base64 bridge exposed by Electron.
+   *
+   * @param pdfPath - Absolute path of the PDF to load.
+   * @returns In-memory PDF document instance.
+   */
+  private async loadPdfDocument(pdfPath: string): Promise<PDFDocument> {
+    const base64Pdf = await window.api.readBinaryFile(pdfPath);
+    const pdfBytes = this.base64ToUint8Array(base64Pdf);
+
+    return PDFDocument.load(pdfBytes);
+  }
+
+  /**
+   * Saves a PDF document to disk without generating a data URI wrapper.
+   *
+   * @param pdfDoc - Document to persist.
+   * @param pdfPath - Destination path for the PDF file.
+   */
+  private async savePdfDocument(pdfDoc: PDFDocument, pdfPath: string): Promise<void> {
+    const base64Pdf = await pdfDoc.saveAsBase64({dataUri: false});
+    await window.api.writeBinaryFile(pdfPath, base64Pdf);
   }
 
   /**
