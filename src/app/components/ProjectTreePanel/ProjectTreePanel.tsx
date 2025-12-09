@@ -53,7 +53,7 @@ export const ProjectTreePanel: React.FC<Props> = ({
 
   return (
     <aside className={`project-tree panel ${collapsed ? 'panel--collapsed' : 'panel--expanded'}`}>
-      <div className="panel__header">Files</div>
+      <div className="panel__header">Project tree</div>
       <div className="panel__body" onContextMenu={(event) => openContextMenu(event)}>
         {hasTree ? (
           <FileTree

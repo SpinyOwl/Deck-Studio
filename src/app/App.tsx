@@ -1284,6 +1284,7 @@ function App() {
             className="toolbar__icon-button"
             aria-label="Create new project"
             onClick={handleCreateProject}
+            title="Create new project"
           >
             <span aria-hidden="true" className="material-symbols-outlined">
               create_new_folder
@@ -1294,6 +1295,7 @@ function App() {
             className="toolbar__icon-button"
             aria-label="Open existing project"
             onClick={handleOpenProject}
+            title="Open existing project"
           >
             <span aria-hidden="true" className="material-symbols-outlined">
               folder_open
@@ -1305,6 +1307,7 @@ function App() {
             aria-label="Export to PDF"
             disabled={!project?.resolvedCards.length}
             onClick={handleExport}
+            title="Export to PDF"
           >
             <span aria-hidden="true" className="material-symbols-outlined">
               picture_as_pdf
@@ -1315,6 +1318,7 @@ function App() {
             className="toolbar__icon-button"
             aria-label="Open settings"
             onClick={handleOpenSettings}
+            title="Settings"
           >
             <span aria-hidden="true" className="material-symbols-outlined">
               settings
@@ -1327,6 +1331,7 @@ function App() {
             aria-label="Close project"
             disabled={!project}
             onClick={handleCloseProject}
+            title="Close current project"
           >
             <span aria-hidden="true" className="material-symbols-outlined">
               close
@@ -1343,6 +1348,7 @@ function App() {
             aria-label={isProjectTreeCollapsed ? 'Expand project tree' : 'Collapse project tree'}
             data-state={isProjectTreeCollapsed ? 'collapsed' : 'expanded'}
             onClick={toggleProjectTree}
+            title="Project tree"
           >
             <span aria-hidden="true" className="material-symbols-outlined">
               folder
@@ -1356,6 +1362,7 @@ function App() {
             aria-label={isLogsCollapsed ? 'Expand logs' : 'Collapse logs'}
             data-state={isLogsCollapsed ? 'collapsed' : 'expanded'}
             onClick={toggleLogs}
+            title="Logs"
           >
             <span aria-hidden="true" className="material-symbols-outlined">
               terminal
@@ -1433,6 +1440,7 @@ function App() {
             aria-label={isPreviewCollapsed ? 'Expand card preview' : 'Collapse card preview'}
             data-state={isPreviewCollapsed ? 'collapsed' : 'expanded'}
             onClick={togglePreview}
+            title="Card preview"
           >
             <span aria-hidden="true" className="material-symbols-outlined">
               visibility
