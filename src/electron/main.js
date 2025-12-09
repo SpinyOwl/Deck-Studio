@@ -4,6 +4,8 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs');
 
+const yaml = require('yaml');
+
 const fsPromises = fs.promises;
 const IMAGE_MIME_BY_EXTENSION = new Map([
     ['.png', 'image/png'],
@@ -51,6 +53,42 @@ async function createWindow() {
 const SETTINGS_DIR_NAME = 'SpinyOwl.DeckStudio';
 const SETTINGS_FILE_NAME = 'settings.yml';
 const LAYOUT_FILE_NAME = 'layout.json';
+const THEMES_DIR_NAME = 'themes';
+const DEFAULT_THEMES_PATH = path.join(__dirname, 'themes', 'defaults');
+const THEME_FILE_EXTENSIONS = new Set(['.yml', '.yaml']);
+const THEME_VARIABLE_KEYS = [
+    'color-background',
+    'color-surface',
+    'color-surface-contrast',
+    'color-surface-raised',
+    'color-surface-muted',
+    'color-surface-accent',
+    'color-surface-hover',
+    'color-surface-pressed',
+    'color-surface-disabled',
+    'color-border',
+    'color-border-subtle',
+    'color-resize',
+    'color-shadow',
+    'color-text-primary',
+    'color-text-strong',
+    'color-text-secondary',
+    'color-text-muted',
+    'color-text-disabled',
+    'color-text-placeholder',
+    'color-text-contrast',
+    'color-icon-muted',
+    'color-icon-collapsed',
+    'color-tree-selection',
+    'color-tree-selection-text',
+    'color-tree-icon',
+    'color-tree-chevron',
+    'color-tree-dir-icon',
+    'color-tree-file-icon',
+    'color-accent',
+    'color-focus'
+];
+const DEFAULT_THEME_ID = 'dark';
 const DEFAULT_LAYOUT_STATE = {
     window: {
         width: 1200,
@@ -70,7 +108,7 @@ const DEFAULT_LAYOUT_STATE = {
 };
 let layoutStateCache = normalizeLayoutState(DEFAULT_LAYOUT_STATE);
 const SETTINGS_TEMPLATE = `# Deck Studio application settings
-# theme: Controls the editor theme. Allowed values: dark, light.
+# theme: Controls the editor theme. Set to the id of a theme YAML file stored in the themes folder (e.g., dark, light).
 theme: dark
 
 autosave:
@@ -110,6 +148,29 @@ function getSettingsPaths() {
 }
 
 /**
+ * Builds the absolute path to the themes directory within the application data folder.
+ *
+ * @returns {string} Absolute path where theme YAML files are stored.
+ */
+function getThemesDirectoryPath() {
+    const { settingsDir } = getSettingsPaths();
+    return path.join(settingsDir, THEMES_DIR_NAME);
+}
+
+/**
+ * Ensures the themes directory exists and contains the bundled default themes.
+ *
+ * @returns {Promise<string>} Absolute path to the themes directory.
+ */
+async function ensureThemesDirectory() {
+    const themesDir = getThemesDirectoryPath();
+    await fsPromises.mkdir(themesDir, { recursive: true });
+    await copyDefaultThemes(themesDir);
+
+    return themesDir;
+}
+
+/**
  * Ensures that the settings directory and file exist, creating them with the template when missing.
  * @returns {Promise<{ settingsDir: string; settingsFile: string }>} Settings directory and file paths.
  */
@@ -125,6 +186,115 @@ async function ensureSettingsFile() {
     }
 
     return { settingsDir, settingsFile };
+}
+
+/**
+ * Copies bundled default themes into the user's themes directory when they are missing.
+ *
+ * @param {string} destinationDir - Folder where themes should be unpacked.
+ * @returns {Promise<void>} Completes when defaults are ensured.
+ */
+async function copyDefaultThemes(destinationDir) {
+    try {
+        const entries = await fsPromises.readdir(DEFAULT_THEMES_PATH, { withFileTypes: true });
+
+        for (const entry of entries) {
+            if (!entry.isFile()) continue;
+
+            const extension = path.extname(entry.name).toLowerCase();
+            if (!THEME_FILE_EXTENSIONS.has(extension)) continue;
+
+            const targetPath = path.join(destinationDir, entry.name);
+            try {
+                await fsPromises.access(targetPath, fs.constants.F_OK);
+                continue;
+            } catch (error) {
+                if (error && error.code !== 'ENOENT') {
+                    throw error;
+                }
+            }
+
+            const sourcePath = path.join(DEFAULT_THEMES_PATH, entry.name);
+            const content = await fsPromises.readFile(sourcePath);
+            await fsPromises.writeFile(targetPath, content);
+        }
+    } catch (error) {
+        console.warn('Failed to unpack default themes.', error);
+    }
+}
+
+/**
+ * Normalizes the variables portion of a theme definition by filtering allowed keys and
+ * coercing values to trimmed strings.
+ *
+ * @param {Record<string, unknown>} variables - Raw variables object from YAML.
+ * @returns {Record<string, string>} Sanitized variable map.
+ */
+function normalizeThemeVariables(variables = {}) {
+    const normalized = {};
+
+    for (const key of THEME_VARIABLE_KEYS) {
+        const value = variables[key];
+        if (typeof value === 'string' && value.trim()) {
+            normalized[key] = value.trim();
+        }
+    }
+
+    return normalized;
+}
+
+/**
+ * Converts a raw YAML theme payload into a structured theme definition.
+ *
+ * @param {Record<string, unknown>} themeData - Parsed YAML content.
+ * @param {string} fileName - Name of the source YAML file.
+ * @returns {{ id: string; name: string; description?: string; variables: Record<string, string> }}
+ * Normalized theme definition.
+ */
+function normalizeThemeDefinition(themeData, fileName) {
+    const fallbackId = path.basename(fileName, path.extname(fileName));
+    const id = typeof themeData?.id === 'string' && themeData.id.trim() ? themeData.id.trim() : fallbackId;
+    const name = typeof themeData?.name === 'string' && themeData.name.trim() ? themeData.name.trim() : id;
+    const description = typeof themeData?.description === 'string' ? themeData.description.trim() : '';
+    const variables = normalizeThemeVariables(themeData?.variables);
+
+    return { id, name, description, variables };
+}
+
+/**
+ * Loads all YAML theme files from the themes directory, returning sanitized definitions.
+ *
+ * @returns {Promise<Array<{ id: string; name: string; description?: string; variables: Record<string, string> }>>}
+ * Discovered themes.
+ */
+async function loadThemesFromDisk() {
+    const themesDir = await ensureThemesDirectory();
+    const entries = await fsPromises.readdir(themesDir, { withFileTypes: true });
+    const themes = [];
+
+    for (const entry of entries) {
+        if (!entry.isFile()) continue;
+
+        const extension = path.extname(entry.name).toLowerCase();
+        if (!THEME_FILE_EXTENSIONS.has(extension)) continue;
+
+        try {
+            const filePath = path.join(themesDir, entry.name);
+            const raw = await fsPromises.readFile(filePath, 'utf8');
+            const parsed = yaml.parse(raw);
+            themes.push(normalizeThemeDefinition(parsed, entry.name));
+        } catch (error) {
+            console.warn(`Skipping invalid theme file ${entry.name}.`, error);
+        }
+    }
+
+    themes.sort((a, b) => {
+        if (a.id === DEFAULT_THEME_ID) return -1;
+        if (b.id === DEFAULT_THEME_ID) return 1;
+        return a.name.localeCompare(b.name);
+    });
+
+    return themes;
 }
 
 /**
@@ -408,8 +578,15 @@ function trackWindowBounds(win) {
     win.on('close', persistBounds);
 }
 
-app.whenReady().then(() => {
-    createWindow();
+app.whenReady().then(async () => {
+    try {
+        await ensureSettingsFile();
+        await ensureThemesDirectory();
+    } catch (error) {
+        console.warn('Failed to initialize configuration directories.', error);
+    }
+
+    await createWindow();
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -680,6 +857,15 @@ ipcMain.handle('save-settings', async (_event, content) => {
     await fsPromises.writeFile(settingsFile, content, 'utf8');
 
     return { path: settingsFile, content };
+});
+
+ipcMain.handle('load-themes', async () => {
+    try {
+        return await loadThemesFromDisk();
+    } catch (error) {
+        console.warn('Unable to load themes from disk.', error);
+        return [];
+    }
 });
 
 ipcMain.handle('load-layout-state', async () => {

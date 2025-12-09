@@ -2,6 +2,7 @@
 import React from 'react';
 import {ImageViewer} from '../ImageViewer';
 import {MonacoEditorPane} from '../MonacoEditorPane';
+import {type ThemeVariables} from '../../types/theme';
 import './EditorPanel.css';
 
 interface OpenFile {
@@ -21,6 +22,8 @@ interface Props {
   readonly onCsvChange: (value: string) => void;
   readonly onSave: () => void;
   readonly isVisible: boolean;
+  readonly themeId: string;
+  readonly themeVariables: ThemeVariables;
 }
 
 /**
@@ -38,6 +41,8 @@ export const EditorPanel: React.FC<Props> = ({
   onCsvChange,
   onSave,
   isVisible,
+  themeId,
+  themeVariables,
 }) => {
   const tabRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
   const activeFile = openFiles.find(file => file.path === activePath);
@@ -113,6 +118,8 @@ export const EditorPanel: React.FC<Props> = ({
               value={activeFile.content}
               onChange={activeFile.fileType === 'csv' ? onCsvChange : onChange}
               onSave={onSave}
+              themeId={themeId}
+              themeVariables={themeVariables}
             />
           )
         ) : (

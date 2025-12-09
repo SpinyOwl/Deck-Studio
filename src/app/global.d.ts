@@ -1,6 +1,7 @@
 // src/global.d.ts
 import type {FileNode} from './types/files';
 import type {LayoutState} from './types/layout';
+import type {ThemeDefinition} from './types/theme';
 
 export {};
 
@@ -25,6 +26,7 @@ declare global {
       writeFile(path: string, content: string): Promise<boolean>;
       loadSettings(): Promise<{ path: string; content: string }>;
       saveSettings(content: string): Promise<{ path: string; content: string }>;
+      loadThemes(): Promise<ThemeDefinition[]>;
       loadLayoutState(): Promise<LayoutState>;
       saveLayoutState(payload: Partial<LayoutState>): Promise<LayoutState>;
       loadProjectFolder(rootPath: string): Promise<{ rootPath: string; tree: FileNode[] } | null>;

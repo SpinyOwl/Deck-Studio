@@ -16,10 +16,12 @@ import {logService} from './services/LogService';
 import {fileService} from './services/FileService';
 import {projectService} from './services/ProjectService';
 import {layoutService} from './services/LayoutService';
+import {themeService} from './services/ThemeService';
 import {yamlParsingService} from './services/YamlParsingService';
 import {type FileNode} from './types/files';
 import {type Project} from './types/project';
 import {type AppSettings, type AutosaveSettingsConfig} from './types/settings';
+import {type ThemeDefinition, type ThemeVariables} from './types/theme';
 import {PROJECT_CONFIG_FILENAME} from './constants/project';
 import {
   containsPathSeparator,
@@ -33,6 +35,7 @@ import './styles/Panel.css';
 import { pdfExportService } from './services/PdfExportService';
 import { NotificationPopup } from './components/NotificationPopup/NotificationPopup';
 import { ExportStatusPopup } from './components/ExportStatusPopup';
+import {DEFAULT_THEME_DEFINITION, DEFAULT_THEME_ID, DEFAULT_THEME_VARIABLES} from './constants/themes';
 
 const MIN_TREE_PANEL_SIZE = 150;
 const MIN_PREVIEW_PANEL_SIZE = 250;
@@ -108,6 +111,32 @@ function parseAutosaveSettings(yamlText: string): AutosaveSettings {
 
     return DEFAULT_AUTOSAVE_SETTINGS;
   }
+}
+
+/**
+ * Extracts the preferred theme identifier from the YAML settings.
+ *
+ * @param yamlText - Raw YAML settings content.
+ * @returns Theme identifier or null when unavailable.
+ */
+function parseThemePreference(yamlText: string): string | null {
+  if (!yamlText.trim()) {
+    return null;
+  }
+
+  try {
+    const settings = yamlParsingService.parse<AppSettings>(yamlText);
+    const rawTheme = settings.theme;
+
+    if (typeof rawTheme === 'string' && rawTheme.trim()) {
+      return rawTheme.trim();
+    }
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    logService.debug(`Unable to parse theme preference. Using default theme. (${reason})`);
+  }
+
+  return null;
 }
 
 /**
@@ -193,6 +222,9 @@ function App() {
   const [autosaveSettings, setAutosaveSettings] = useState<AutosaveSettings>(
     DEFAULT_AUTOSAVE_SETTINGS,
   );
+  const [themes, setThemes] = useState<ThemeDefinition[]>([DEFAULT_THEME_DEFINITION]);
+  const [activeTheme, setActiveTheme] = useState<ThemeDefinition>(DEFAULT_THEME_DEFINITION);
+  const [themeVariables, setThemeVariables] = useState<ThemeVariables>(DEFAULT_THEME_VARIABLES);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
 
   type DragTarget = 'sidebar' | 'preview' | 'logs';
@@ -270,6 +302,32 @@ function App() {
 
     void hydrateSettings();
   }, []);
+
+  useEffect(() => {
+    async function hydrateThemes() {
+      try {
+        const loadedThemes = await window.api.loadThemes();
+
+        setThemes(loadedThemes.length > 0 ? loadedThemes : [DEFAULT_THEME_DEFINITION]);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        logService.warning(`Unable to load themes. Using defaults. (${reason})`);
+        setThemes([DEFAULT_THEME_DEFINITION]);
+      }
+    }
+
+    void hydrateThemes();
+  }, []);
+
+  useEffect(() => {
+    const preferredTheme = parseThemePreference(settingsContent) ?? DEFAULT_THEME_ID;
+    const resolvedTheme = themeService.resolveTheme(preferredTheme, themes);
+
+    const mergedVariables = themeService.applyTheme(resolvedTheme);
+
+    setActiveTheme(resolvedTheme);
+    setThemeVariables(mergedVariables);
+  }, [settingsContent, themes]);
 
   useEffect(() => {
     openFilesRef.current = openFiles;
@@ -1336,6 +1394,8 @@ function App() {
         onSelectFile={setActiveFilePath}
         onCloseFile={handleCloseFile}
         isVisible={Boolean(project)}
+        themeId={activeTheme.id}
+        themeVariables={themeVariables}
       />
 
       <CardPreviewPanel

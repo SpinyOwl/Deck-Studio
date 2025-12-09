@@ -29,5 +29,5 @@
 .csv-column-color-19 { background-color: rgba(199, 21, 133, 0.15); }
 
 .monaco-editor .csv-column-active {
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+    box-shadow: inset 0 0 0 1px var(--color-text-secondary);
 }

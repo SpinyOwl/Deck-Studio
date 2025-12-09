@@ -3,6 +3,8 @@ import React from 'react';
 import Editor, {type OnMount} from '@monaco-editor/react';
 import type * as monaco from 'monaco-editor';
 import {mapColumnRanges, splitCsvRows} from '../../utils/csv';
+import {monacoThemeService} from '../../services/MonacoThemeService';
+import {type ThemeVariables} from '../../types/theme';
 import './MonacoEditorPane.css';
 
 interface Props {
@@ -10,6 +12,8 @@ interface Props {
   value: string;
   onChange: (value: string) => void;
   onSave: () => void;
+  themeId: string;
+  themeVariables: ThemeVariables;
 }
 
 /**
@@ -131,7 +135,14 @@ function resolveColumnIndex(
  * @param props - Monaco editor pane props.
  * @returns Monaco editor instance wrapped in a flex container.
  */
-export const MonacoEditorPane: React.FC<Props> = ({ path, value, onChange, onSave }) => {
+export const MonacoEditorPane: React.FC<Props> = ({
+  path,
+  value,
+  onChange,
+  onSave,
+  themeId,
+  themeVariables,
+}) => {
   const editorRef = React.useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = React.useRef<typeof monaco | null>(null);
   const saveHandlerRef = React.useRef<() => void>(() => {});
@@ -139,6 +150,7 @@ export const MonacoEditorPane: React.FC<Props> = ({ path, value, onChange, onSav
 
   const [activeColumn, setActiveColumn] = React.useState<number | null>(null);
   const [content, setContent] = React.useState<string>(() => value);
+  const [monacoTheme, setMonacoTheme] = React.useState<string>('vs-dark');
 
   const isCsv = React.useMemo(() => isCsvPath(path), [path]);
 
@@ -149,6 +161,20 @@ export const MonacoEditorPane: React.FC<Props> = ({ path, value, onChange, onSav
   React.useEffect(() => {
     saveHandlerRef.current = onSave;
   }, [onSave]);
+
+  const applyMonacoTheme = React.useCallback(() => {
+    if (!monacoRef.current) {
+      return;
+    }
+
+    const themeName = monacoThemeService.applyTheme(
+      monacoRef.current,
+      themeId,
+      themeVariables,
+    );
+
+    setMonacoTheme(themeName);
+  }, [themeId, themeVariables]);
 
   const applyDecorations = React.useCallback(
     (model: monaco.editor.ITextModel | null, nextValue: string, highlightedColumn: number | null) => {
@@ -163,6 +189,10 @@ export const MonacoEditorPane: React.FC<Props> = ({ path, value, onChange, onSav
     },
     [isCsv],
   );
+
+  React.useEffect(() => {
+    applyMonacoTheme();
+  }, [applyMonacoTheme]);
 
   const handleEditorChange = React.useCallback(
     (nextValue?: string) => {
@@ -183,6 +213,8 @@ export const MonacoEditorPane: React.FC<Props> = ({ path, value, onChange, onSav
     editor.addCommand(monacoInstance.KeyMod.CtrlCmd | monacoInstance.KeyCode.KeyS, () => {
       saveHandlerRef.current();
     });
+
+    applyMonacoTheme();
 
     if (!isCsv) {
       return;
@@ -213,7 +245,7 @@ export const MonacoEditorPane: React.FC<Props> = ({ path, value, onChange, onSav
     });
 
     applyDecorations(model, content, activeColumn);
-  }, [activeColumn, applyDecorations, content, isCsv]);
+  }, [activeColumn, applyDecorations, applyMonacoTheme, content, isCsv]);
 
   React.useEffect(() => {
     if (!isCsv) {
@@ -232,7 +264,7 @@ export const MonacoEditorPane: React.FC<Props> = ({ path, value, onChange, onSav
       <Editor
         height="100%"
         language={inferLanguage(path)}
-        theme="vs-dark"
+        theme={monacoTheme}
         path={path}
         value={content}
         onChange={handleEditorChange}
@@ -241,7 +273,7 @@ export const MonacoEditorPane: React.FC<Props> = ({ path, value, onChange, onSav
         options={{
           fontSize: 14,
           minimap: { enabled: false },
-          automaticLayout: true
+          automaticLayout: true,
         }}
       />
     </div>
