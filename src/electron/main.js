@@ -29,12 +29,15 @@ async function createWindow() {
         ...(typeof y === 'number' ? { y } : {}),
         minWidth: 800,
         minHeight: 600,
+        autoHideMenuBar: true,
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true
         }
     });
+
+    win.setMenuBarVisibility(false);
 
     if (layoutState.window.isMaximized) {
         win.once('ready-to-show', () => win.maximize());
