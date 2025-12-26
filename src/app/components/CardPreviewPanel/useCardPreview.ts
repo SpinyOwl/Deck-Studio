@@ -87,6 +87,9 @@ function getCardLabel(card: CardRecord, index: number, config: ProjectConfig | n
   return `Card ${index + 1}`;
 }
 
+const MAX_ZOOM_ALLOWED = 10;
+const MIN_ZOOM_ALLOWED = 0.01;
+
 /**
  * Provides card preview state and handlers for zooming, panning, and selection.
  *
@@ -147,7 +150,7 @@ export function useCardPreview({project}: UseCardPreviewParams): CardPreviewCont
   const translateX = Math.max((viewportSize.width - scaledWidth) / 2, 0);
   const translateY = Math.max((viewportSize.height - scaledHeight) / 2, 0);
 
-  const clampZoom = useCallback((value: number): number => Math.min(4, Math.max(0.25, value)), []);
+  const clampZoom = useCallback((value: number): number => Math.min(MAX_ZOOM_ALLOWED, Math.max(MIN_ZOOM_ALLOWED, value)), []);
 
   const computeFitZoom = useCallback((): number | null => {
     const viewport = viewportRef.current;
