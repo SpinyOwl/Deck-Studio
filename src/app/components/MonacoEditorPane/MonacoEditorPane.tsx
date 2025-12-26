@@ -4,7 +4,7 @@ import Editor, {type OnMount} from '@monaco-editor/react';
 import type * as monaco from 'monaco-editor';
 import {mapColumnRanges, splitCsvRows} from '../../utils/csv';
 import {monacoThemeService} from '../../services/MonacoThemeService';
-import {type ThemeVariables} from '../../types/theme';
+import {useThemeState} from '../../services/ThemeStateService';
 import './MonacoEditorPane.css';
 
 interface Props {
@@ -12,8 +12,6 @@ interface Props {
   value: string;
   onChange: (value: string) => void;
   onSave: () => void;
-  themeId: string;
-  themeVariables: ThemeVariables;
 }
 
 /**
@@ -140,9 +138,8 @@ export const MonacoEditorPane: React.FC<Props> = ({
   value,
   onChange,
   onSave,
-  themeId,
-  themeVariables,
 }) => {
+  const {themeId, themeVariables} = useThemeState();
   const editorRef = React.useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = React.useRef<typeof monaco | null>(null);
   const saveHandlerRef = React.useRef<() => void>(() => {});

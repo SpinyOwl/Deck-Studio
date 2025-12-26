@@ -17,11 +17,12 @@ import {fileService} from './services/FileService';
 import {projectService} from './services/ProjectService';
 import {layoutService} from './services/LayoutService';
 import {themeService} from './services/ThemeService';
+import {themeStateService} from './services/ThemeStateService';
 import {yamlParsingService} from './services/YamlParsingService';
 import {type FileNode} from './types/files';
 import {type Project} from './types/project';
 import {type AppSettings, type AutosaveSettingsConfig} from './types/settings';
-import {type ThemeDefinition, type ThemeVariables} from './types/theme';
+import {type ThemeDefinition} from './types/theme';
 import {PROJECT_CONFIG_FILENAME} from './constants/project';
 import {
   containsPathSeparator,
@@ -35,7 +36,7 @@ import './styles/Panel.css';
 import { pdfExportService } from './services/PdfExportService';
 import { NotificationPopup } from './components/NotificationPopup/NotificationPopup';
 import { ExportStatusPopup } from './components/ExportStatusPopup';
-import {DEFAULT_THEME_DEFINITION, DEFAULT_THEME_ID, DEFAULT_THEME_VARIABLES} from './constants/themes';
+import {DEFAULT_THEME_DEFINITION, DEFAULT_THEME_ID} from './constants/themes';
 
 const MIN_TREE_PANEL_SIZE = 150;
 const MIN_PREVIEW_PANEL_SIZE = 250;
@@ -223,8 +224,6 @@ function App() {
     DEFAULT_AUTOSAVE_SETTINGS,
   );
   const [themes, setThemes] = useState<ThemeDefinition[]>([DEFAULT_THEME_DEFINITION]);
-  const [activeTheme, setActiveTheme] = useState<ThemeDefinition>(DEFAULT_THEME_DEFINITION);
-  const [themeVariables, setThemeVariables] = useState<ThemeVariables>(DEFAULT_THEME_VARIABLES);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
 
   type DragTarget = 'sidebar' | 'preview' | 'logs';
@@ -325,8 +324,7 @@ function App() {
 
     const mergedVariables = themeService.applyTheme(resolvedTheme);
 
-    setActiveTheme(resolvedTheme);
-    setThemeVariables(mergedVariables);
+    themeStateService.setTheme(resolvedTheme.id, mergedVariables);
   }, [settingsContent, themes]);
 
   useEffect(() => {
@@ -1401,8 +1399,6 @@ function App() {
         onSelectFile={setActiveFilePath}
         onCloseFile={handleCloseFile}
         isVisible={Boolean(project)}
-        themeId={activeTheme.id}
-        themeVariables={themeVariables}
       />
 
       <CardPreviewPanel
@@ -1458,8 +1454,6 @@ function App() {
         onChange={handleSettingsChange}
         onClose={handleCloseSettings}
         onSave={handleSaveSettings}
-        themeId={activeTheme.id}
-        themeVariables={themeVariables}
       />
       <ExportStatusPopup />
       <NotificationPopup />
