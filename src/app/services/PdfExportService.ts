@@ -50,6 +50,7 @@ class PdfExportService {
       await this.ensureDirectoryExists(imagesDirectory);
       exportStatusService.completeStep(prepareDirectoriesStepId);
     } catch (error) {
+      console.error(error);
       const reason = error instanceof Error ? error.message : String(error);
       exportStatusService.failStep(prepareDirectoriesStepId, reason);
       throw error;
@@ -81,6 +82,7 @@ class PdfExportService {
 
           renderedImages.push(renderedImage);
         } catch (error) {
+          console.error(error);
           const reason = error instanceof Error ? error.message : String(error);
           logService.error(reason);
         } finally {
@@ -130,6 +132,7 @@ class PdfExportService {
         logService.error(message);
       }
     } catch (error) {
+      console.error(error);
       const reason = error instanceof Error ? error.message : String(error);
       if (exportStatusService.getStatus().result !== 'error') {
         exportStatusService.failExport(reason);
@@ -273,6 +276,7 @@ class PdfExportService {
         },
       };
     } catch (error) {
+      console.error(error);
       const reason = error instanceof Error ? error.message : String(error);
       throw new Error(`Failed to render card "${card.card.id}" to image: ${reason}`);
     }
@@ -342,6 +346,7 @@ class PdfExportService {
     try {
       return await domToImage.toPng(node, baseOptions);
     } catch (error) {
+      console.error(error);
       if (error instanceof RangeError) {
         logService.warning(
           'Encountered stack overflow while inlining assets during PDF export. Retrying with inlining disabled.',
@@ -399,9 +404,7 @@ class PdfExportService {
       stepId,
     } = params;
 
-    await this.createEmptyPdfFile(pdfPath);
-
-    let pdfDoc = await this.loadPdfDocument(pdfPath);
+    let pdfDoc = await PDFDocument.create();
     let page = pdfDoc.addPage(this.resolvePageSize(pageSize, orientation));
 
     let pageWidth = page.getWidth();
@@ -486,7 +489,6 @@ class PdfExportService {
           });
 
           if (layout.columns === 0 || layout.rows === 0) {
-            debugger;
             logService.error('Card dimensions and margins exceed the page size.');
             return false;
           }
@@ -560,17 +562,6 @@ class PdfExportService {
 
     return true;
   }
-
-  /**
-   * Initializes an empty PDF file on disk to support incremental page creation.
-   *
-   * @param pdfPath - Absolute path where the PDF should be created.
-   */
-  private async createEmptyPdfFile(pdfPath: string): Promise<void> {
-    const pdfDoc = await PDFDocument.create();
-    await this.savePdfDocument(pdfDoc, pdfPath);
-  }
-
   /**
    * Loads a PDF document from disk using the base64 bridge exposed by Electron.
    *
@@ -604,6 +595,7 @@ class PdfExportService {
     try {
       await window.api.createDirectory(directoryPath);
     } catch (error) {
+      console.error(error);
       const errorWithCode = error as NodeJS.ErrnoException;
       if (errorWithCode?.code === 'EEXIST') {
         return;
