@@ -5,6 +5,7 @@ import {type PdfExportConfig, type Project, type ResolvedCard} from '../types/pr
 import {logService} from './LogService';
 import {joinPathSegments} from '../utils/path';
 import {exportStatusService} from './ExportStatusService';
+import {mmToPoints, scaleCardToFitPage} from './pdfScaling';
 
 type RenderedCardImage = {
   card: ResolvedCard;
@@ -410,8 +411,8 @@ class PdfExportService {
     let currentCardHeightMm = 0;
     let cardWidthPts = 0;
     let cardHeightPts = 0;
-    const marginPts = this.mmToPoints(margin);
-    const borderThicknessPts = this.mmToPoints(borderThickness);
+    const marginPts = mmToPoints(margin);
+    const borderThicknessPts = mmToPoints(borderThickness);
     const color = this.hexToRgb(borderColor);
 
     let layout = {columns: 0, rows: 0, xOffset: 0, yOffset: 0};
@@ -444,21 +445,38 @@ class PdfExportService {
           continue;
         }
 
+        const scaledDimensions = scaleCardToFitPage({
+          cardWidthMm: image.size.widthMm,
+          cardHeightMm: image.size.heightMm,
+          pageWidthPts: pageWidth,
+          pageHeightPts: pageHeight,
+          marginPts,
+          borderThicknessMm: borderThickness,
+        });
+
+        if (scaledDimensions.widthMm <= 0 || scaledDimensions.heightMm <= 0) {
+          logService.error('Card dimensions could not be scaled to fit the page.');
+          continue;
+        }
+
+        const borderScale = scaledDimensions.scale || 1;
+        const scaledBorderThicknessPts = borderThicknessPts * borderScale;
+
         const requiresNewLayout =
           layout.columns === 0
           || layout.rows === 0
-          || image.size.widthMm !== currentCardWidthMm
-          || image.size.heightMm !== currentCardHeightMm;
+          || scaledDimensions.widthMm !== currentCardWidthMm
+          || scaledDimensions.heightMm !== currentCardHeightMm;
 
         if (requiresNewLayout) {
           if (placedImages > 0) {
             await addNewPage();
           }
 
-          currentCardWidthMm = image.size.widthMm;
-          currentCardHeightMm = image.size.heightMm;
-          cardWidthPts = this.mmToPoints(currentCardWidthMm);
-          cardHeightPts = this.mmToPoints(currentCardHeightMm);
+          currentCardWidthMm = scaledDimensions.widthMm;
+          currentCardHeightMm = scaledDimensions.heightMm;
+          cardWidthPts = mmToPoints(currentCardWidthMm);
+          cardHeightPts = mmToPoints(currentCardHeightMm);
           layout = this.calculateGridLayout({
             pageWidthPts: pageWidth,
             pageHeightPts: pageHeight,
@@ -512,14 +530,14 @@ class PdfExportService {
           height: cardHeightPts,
         });
 
-        if (borderThicknessPts > 0) {
+        if (scaledBorderThicknessPts > 0) {
           page.drawRectangle({
-            x: x - borderThicknessPts,
-            y: y - borderThicknessPts,
-            width: cardWidthPts + borderThicknessPts * 2,
-            height: cardHeightPts + borderThicknessPts * 2,
+            x: x - scaledBorderThicknessPts,
+            y: y - scaledBorderThicknessPts,
+            width: cardWidthPts + scaledBorderThicknessPts * 2,
+            height: cardHeightPts + scaledBorderThicknessPts * 2,
             borderColor: color,
-            borderWidth: borderThicknessPts,
+            borderWidth: scaledBorderThicknessPts,
           });
         }
 
@@ -668,16 +686,6 @@ class PdfExportService {
   }
 
   /**
-   * Converts millimeters to PDF points.
-   *
-   * @param mm - Measurement in millimeters.
-   * @returns Measurement in points.
-   */
-  private mmToPoints(mm: number): number {
-    return (mm / 25.4) * 72;
-  }
-
-  /**
    * Resolves the page size for pdf-lib based on configuration.
    *
    * @param pageSize - Named page size.
@@ -769,6 +777,16 @@ class PdfExportService {
 
     return {columns, rows, xOffset, yOffset};
   }
+
+  /**
+   * Scales a card to fit within the current page when only a single card should be placed.
+   *
+   * The calculation considers the configured margin and border thickness to ensure the drawn
+   * card (including its border) never exceeds the available page area.
+   *
+   * @param params - Measurements of the card and page in mixed units.
+   * @returns Scaled card dimensions in millimeters.
+   */
 }
 
 export const pdfExportService = new PdfExportService();
