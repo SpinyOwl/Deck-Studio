@@ -252,15 +252,10 @@ class PdfExportService {
 
       const body = iframeWindow.document.body;
       const scale = 1;
-      const imgData = await domToImage.toPng(body, {
-        width: cardWidthPx * scale,
-        height: cardHeightPx * scale,
-        style: {
-          transform: `scale(${scale})`,
-          transformOrigin: 'top left',
-          width: `${cardWidthPx}px`,
-          height: `${cardHeightPx}px`,
-        },
+      const imgData = await this.renderNodeToPng(body, {
+        width: cardWidthPx,
+        height: cardHeightPx,
+        scale,
       });
 
       const base64 = imgData.substring(imgData.indexOf(',') + 1);
@@ -317,6 +312,51 @@ class PdfExportService {
       iframe.addEventListener('load', onLoad, {once: true});
       iframe.srcdoc = buildPreviewDocument(cardHtml);
     });
+  }
+
+  /**
+   * Renders a DOM node to a PNG data URI while handling dom-to-image stack overflow edge cases.
+   *
+   * @param node - Node to render.
+   * @param params - Rendering measurements and scale factor.
+   * @returns PNG data URI for the rendered node.
+   */
+  private async renderNodeToPng(node: HTMLElement, params: {
+    width: number;
+    height: number;
+    scale?: number;
+  }): Promise<string> {
+    const {width, height, scale = 1} = params;
+    const baseOptions = {
+      width: width * scale,
+      height: height * scale,
+      style: {
+        transform: `scale(${scale})`,
+        transformOrigin: 'top left',
+        width: `${width}px`,
+        height: `${height}px`,
+      },
+    } as const;
+
+    try {
+      return await domToImage.toPng(node, baseOptions);
+    } catch (error) {
+      if (error instanceof RangeError) {
+        logService.warning(
+          'Encountered stack overflow while inlining assets during PDF export. Retrying with inlining disabled.',
+        );
+
+        const fallbackOptions = {
+          ...baseOptions,
+          disableInlineImages: true,
+          disableEmbedFonts: true,
+        } as const;
+
+        return domToImage.toPng(node, fallbackOptions);
+      }
+
+      throw error;
+    }
   }
 
   /**
@@ -428,6 +468,7 @@ class PdfExportService {
           });
 
           if (layout.columns === 0 || layout.rows === 0) {
+            debugger;
             logService.error('Card dimensions and margins exceed the page size.');
             return false;
           }
@@ -486,6 +527,7 @@ class PdfExportService {
         placedImages++;
         exportStatusService.updateStepDetail(stepId, `Added ${placedImages} of ${images.length} images`);
       } catch (error) {
+        console.error(error);
         const reason = error instanceof Error ? error.message : String(error);
         logService.error(`Failed to add image for card "${image.card.card.id}" to PDF: ${reason}`);
       }
@@ -716,12 +758,8 @@ class PdfExportService {
   }): {columns: number; rows: number; xOffset: number; yOffset: number} {
     const {pageWidthPts, pageHeightPts, cardWidthPts, cardHeightPts, marginPts} = params;
 
-    const columns = Math.floor((pageWidthPts + marginPts) / (cardWidthPts + marginPts));
-    const rows = Math.floor((pageHeightPts + marginPts) / (cardHeightPts + marginPts));
-
-    if (columns === 0 || rows === 0) {
-      return {columns: 0, rows: 0, xOffset: 0, yOffset: 0};
-    }
+    const columns = Math.max(1, Math.floor((pageWidthPts + marginPts) / (cardWidthPts + marginPts)));
+    const rows = Math.max(1, Math.floor((pageHeightPts + marginPts) / (cardHeightPts + marginPts)));
 
     const totalWidth = columns * cardWidthPts + (columns - 1) * marginPts;
     const totalHeight = rows * cardHeightPts + (rows - 1) * marginPts;
