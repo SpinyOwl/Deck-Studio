@@ -53,7 +53,7 @@ async function createWindow() {
     }
 }
 
-const SETTINGS_DIR_NAME = 'SpinyOwl.DeckStudio';
+const SETTINGS_DIR_NAME = 'SpinyOwl/DeckStudio';
 const SETTINGS_FILE_NAME = 'settings.yml';
 const LAYOUT_FILE_NAME = 'layout.json';
 const THEMES_DIR_NAME = 'themes';

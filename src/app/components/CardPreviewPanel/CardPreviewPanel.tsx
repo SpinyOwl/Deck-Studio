@@ -51,7 +51,7 @@ export const CardPreviewPanel: React.FC<Props> = ({collapsed, project, exportPro
 
   return (<section className={`card-preview panel ${collapsed ? 'panel--collapsed' : 'panel--expanded'}`}>
     <div className="panel__header">
-      <div className="title">Card preview</div>
+      <div className="title">Preview</div>
       <div className="card-preview__dimensions" aria-label="Card dimensions">
           <span title="Size" aria-label="Size">{Math.round(cardWidthPx)} × {Math.round(cardHeightPx)} px</span>
           <span title="Zoom" aria-label="Zoom">{Math.round(zoom * 100)}%</span>

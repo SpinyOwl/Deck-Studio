@@ -1,6 +1,7 @@
 // src/components/SettingsModal/SettingsModal.tsx
 import {MonacoEditorPane} from '../MonacoEditorPane';
 import './SettingsModal.css';
+import type {ThemeVariables} from "../../types/theme.ts";
 
 interface SettingsModalProps {
   readonly isOpen: boolean;
@@ -11,6 +12,8 @@ interface SettingsModalProps {
   onChange(value: string): void;
   onClose(): void;
   onSave(): void;
+  themeId: string;
+  themeVariables: ThemeVariables;
 }
 
 /**
@@ -25,6 +28,8 @@ export function SettingsModal({
   onChange,
   onClose,
   onSave,
+  themeId,
+  themeVariables,
 }: SettingsModalProps) {
   if (!isOpen) return null;
 
@@ -52,7 +57,9 @@ export function SettingsModal({
         </header>
 
         <div className="settings-editor__body">
-          <MonacoEditorPane path={path || 'settings.yml'} value={content} onChange={onChange} onSave={onSave} />
+          <MonacoEditorPane path={path || 'settings.yml'} value={content} onChange={onChange} onSave={onSave}
+                            themeId={themeId}
+                            themeVariables={themeVariables} />
         </div>
 
         {error ? <p className="settings-editor__error">{error}</p> : null}

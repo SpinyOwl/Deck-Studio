@@ -1458,6 +1458,8 @@ function App() {
         onChange={handleSettingsChange}
         onClose={handleCloseSettings}
         onSave={handleSaveSettings}
+        themeId={activeTheme.id}
+        themeVariables={themeVariables}
       />
       <ExportStatusPopup />
       <NotificationPopup />
